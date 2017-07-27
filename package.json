@@ -1,0 +1,5 @@
+{
+  "name"    : "ElectronBridge",
+  "version" : "0.1.0",
+  "main"    : "electronbridge_js/main.js"
+}

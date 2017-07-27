@@ -1,0 +1,41 @@
+<html>
+<head><title></title>
+<style>
+	body {
+		margin: 0.5em;
+		background-color: black;
+		color: white;
+	}
+	a {
+		color: orange;
+	}
+</style>
+</head>
+<body>
+
+<h2>[ <a href="#" onclick="clear_all(); return false;">clear all</a> ]</h2>
+
+<hr>
+
+<pre id="log"></pre>
+
+<script>
+	"use strict";
+
+	const ipcRenderer = require("electron").ipcRenderer;
+
+	function clear_all() {
+		let pre = document.getElementById("log")
+		pre.innerHTML = ""
+	}
+
+	ipcRenderer.on("update", (event, opts) => {
+		let pre = document.getElementById("log")
+		pre.innerHTML += opts.msg
+	});
+
+	ipcRenderer.send("ready", null);
+</script>
+
+</body>
+</html>
