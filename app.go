@@ -3,7 +3,7 @@ package main
 import (
 	"math/rand"
 	"time"
-	electron "github.com/fohristiwhirl/electronbridge/electronbridge_golib"
+	electron "./electronbridge_golib"
 )
 
 const (
