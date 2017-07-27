@@ -203,6 +203,10 @@ func listener() {
 				Logf("Received done for effect %d but no notifier was known", effect_done_msg.Content.EffectID)
 			}
 		}
+
+		if type_obj.Type == "panic" {
+			panic("Deliberate panic induced by front end.")
+		}
 	}
 }
 

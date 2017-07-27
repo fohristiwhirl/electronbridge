@@ -1,6 +1,7 @@
 package electronbridge
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -13,6 +14,8 @@ type GridWindow struct {
 	Chars			ByteSlice					`json:"chars"`
 	Colours			ByteSlice					`json:"colours"`
 	Highlight		Point						`json:"highlight"`
+
+	LastFlip		[20]byte
 }
 
 type NewGridWinMsg struct {
@@ -57,6 +60,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 	if err != nil {
 		panic("Failed to Marshal")
 	}
+
 	fmt.Printf("%s\n", string(s))
 
 	return &w
@@ -109,10 +113,17 @@ func (w *GridWindow) Flip() {
 		panic("Failed to Marshal")
 	}
 
-	fmt.Printf("%s\n", string(s))
+	// We cache the last flip and don't repeat it if we don't need to.
+
+	sum := sha1.Sum(s)
+
+	if sum != w.LastFlip {
+		w.LastFlip = sum
+		fmt.Printf("%s\n", string(s))
+	}
 }
 
-func (w *GridWindow) Special(effect string, timeout_seconds float64, args []interface{}) {
+func (w *GridWindow) Special(effect string, timeout_duration time.Duration, args []interface{}) {
 
 	// Special effects. What is available depends on the contents of the html page.
 
@@ -138,7 +149,7 @@ func (w *GridWindow) Special(effect string, timeout_seconds float64, args []inte
 
 	ch := make(chan bool)
 
-	timeout := time.NewTimer(time.Duration(int64(timeout_seconds * 1000)) * time.Millisecond)
+	timeout := time.NewTimer(timeout_duration)
 
 	effect_done_channels_MUTEX.Lock()
 	effect_done_channels[c.EffectID] = ch
