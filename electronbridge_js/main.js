@@ -13,12 +13,59 @@ const TARGET_APP = "app.exe"
 
 
 electron.app.on("ready", () => {
-	menu_build();
 	main();
 });
 
 
 function main() {
+
+	// Menu...................................................................
+
+	const template = [
+		{
+			label: "Game",
+			submenu: [
+				{
+					role: "quit"
+				},
+				{
+					type: "separator"
+				},
+				{
+					label: "Show All App Windows",
+					click: () => windows.show_all_except([STDERR_LOG_WINDOW_ID])
+				},
+			]
+		},
+		{
+			label: "Dev",
+			submenu: [
+				{
+					role: "toggledevtools"
+				},
+				{
+					label: "Show Client Log",
+					click: () => windows.show(STDERR_LOG_WINDOW_ID),
+				},
+				{
+					type: "separator"
+				},
+				{
+					label: "Panic",
+					click: () => {
+						let output = {
+							type: "panic",
+							content: null,
+						}
+						write_to_exe(JSON.stringify(output));
+					}
+				},
+			]
+		},
+	];
+
+	const menu = electron.Menu.buildFromTemplate(template);
+	electron.Menu.setApplicationMenu(menu);
 
 	// Create our log window..................................................
 
@@ -48,7 +95,7 @@ function main() {
 		});
 	}
 
-	// Communications with the compiled app....................................
+	// Communications with the compiled app...................................
 
 	let exe = child_process.spawn(TARGET_APP);
 
@@ -208,34 +255,4 @@ function main() {
 		}
 		write_to_exe(JSON.stringify(output));
 	});
-}
-
-function menu_build() {
-	const template = [
-		{
-			label: "Menu",
-			submenu: [
-				{
-					role: "quit"
-				},
-				{
-					type: "separator"
-				},
-				{
-					role: "toggledevtools"
-				},
-				{
-					label: "Show Client Log",
-					click: () => windows.show(STDERR_LOG_WINDOW_ID),
-				},
-				{
-					label: "Show All App Windows",
-					click: () => windows.show_all_except([STDERR_LOG_WINDOW_ID])
-				}
-			]
-		}
-	];
-
-	const menu = electron.Menu.buildFromTemplate(template);
-	electron.Menu.setApplicationMenu(menu);
 }

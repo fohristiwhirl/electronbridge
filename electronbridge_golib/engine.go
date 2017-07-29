@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	CLEAR_COLOUR = 'w'
+	CLEAR_COLOUR = "w"
 )
 
 var keypress_chan = make(chan string)
@@ -40,23 +40,14 @@ var effect_id_maker		id_object
 
 // ----------------------------------------------------------
 
-type ByteSlice []byte		// Define this so that such a thing can have its own MarshalJSON() method
-
-func (b ByteSlice) MarshalJSON() ([]byte, error) {
-	str := string(b)
-	return json.Marshal(str)
-}
-
-// ----------------------------------------------------------
-
 type Point struct {
 	X				int							`json:"x"`
 	Y				int							`json:"y"`
 }
 
 type Spot struct {
-	Char			byte
-	Colour			byte
+	Char			string
+	Colour			string
 }
 
 // ----------------------------------------------------------

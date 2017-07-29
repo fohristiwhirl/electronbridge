@@ -4,18 +4,26 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
+
+type StringSlice []string	// For convenience, things that should really be runes are stored as strings
+
+func (s StringSlice) MarshalJSON() ([]byte, error) {	// Marshalling them means concatenation
+	str := strings.Join(s, "")
+	return json.Marshal(str)
+}
 
 type GridWindow struct {
 	Uid				int							`json:"uid"`
 	Width			int							`json:"width"`
 	Height			int							`json:"height"`
-	Chars			ByteSlice					`json:"chars"`
-	Colours			ByteSlice					`json:"colours"`
+	Chars			StringSlice					`json:"chars"`
+	Colours			StringSlice					`json:"colours"`
 	Highlight		Point						`json:"highlight"`
 
-	LastFlip		[20]byte
+	LastFlip		[20]byte					`json:"-"`
 }
 
 type NewGridWinMsg struct {
@@ -36,8 +44,8 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 
 	w := GridWindow{Uid: uid, Width: width, Height: height}
 
-	w.Chars = make([]byte, width * height)
-	w.Colours = make([]byte, width * height)
+	w.Chars = make([]string, width * height)
+	w.Colours = make([]string, width * height)
 
 	w.Highlight = Point{-1, -1}
 
@@ -66,7 +74,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 	return &w
 }
 
-func (w *GridWindow) Set(x, y int, char, colour byte) {
+func (w *GridWindow) Set(x, y int, char string, colour string) {
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
 		return
@@ -82,7 +90,7 @@ func (w *GridWindow) SetPointSpot(point Point, spot Spot) {
 func (w *GridWindow) Get(x, y int) Spot {
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
-		return Spot{Char: ' ', Colour: CLEAR_COLOUR}
+		return Spot{Char: " ", Colour: CLEAR_COLOUR}
 	}
 	char := w.Chars[index]
 	colour := w.Colours[index]
@@ -95,7 +103,7 @@ func (w *GridWindow) SetHighlight(x, y int) {
 
 func (w *GridWindow) Clear() {
 	for n := 0; n < len(w.Chars); n++ {
-		w.Chars[n] = ' '
+		w.Chars[n] = " "
 		w.Colours[n] = CLEAR_COLOUR
 	}
 	w.Highlight = Point{-1, -1}
