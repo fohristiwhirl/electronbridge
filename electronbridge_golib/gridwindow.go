@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type StringSlice []string	// For convenience, things that should really be runes are stored as strings
@@ -47,7 +48,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 	w.Chars = make([]string, width * height)
 	w.Colours = make([]string, width * height)
 
-	w.Highlight = Point{-1, -1}
+	w.Clear()
 
 	// Create the message to send to the server...
 
@@ -75,6 +76,15 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 }
 
 func (w *GridWindow) Set(x, y int, char string, colour string) {
+
+	if utf8.RuneCountInString(char) != 1 {
+		panic("GridWindow.Set(): utf8.RuneCountInString(char) != 1")
+	}
+
+	if utf8.RuneCountInString(colour) != 1 {
+		panic("GridWindow.Set(): utf8.RuneCountInString(colour) != 1")
+	}
+
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
 		return

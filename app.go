@@ -23,7 +23,7 @@ func main() {
 		x := rand.Intn(WIDTH)
 		y := rand.Intn(HEIGHT)
 
-		main_window.Set(x, y, '*', 'g')
+		main_window.Set(x, y, "*", "g")
 		main_window.Flip()
 
 		if i % 50 == 0 {
