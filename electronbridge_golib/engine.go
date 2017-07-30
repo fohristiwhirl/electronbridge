@@ -9,10 +9,6 @@ import (
 	"sync"
 )
 
-const (
-	CLEAR_COLOUR = "w"
-)
-
 var keypress_chan = make(chan string)
 var key_query_chan = make(chan chan string)
 var keyclear_chan = make(chan bool)

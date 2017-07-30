@@ -9,6 +9,10 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	CLEAR_COLOUR = "w"
+)
+
 type StringSlice []string	// For convenience, things that should really be runes are stored as strings
 
 func (s StringSlice) MarshalJSON() ([]byte, error) {	// Marshalling them means concatenation
@@ -184,7 +188,7 @@ func (w *GridWindow) Special(effect string, timeout_duration time.Duration, args
 		case <- ch:
 			break ChanLoop
 		case <- timeout.C:
-			Logf("Timed out waiting for effect %d", c.EffectID)
+			Logf("Timed out waiting for effect %d (%s)", c.EffectID, effect)
 			break ChanLoop
 		}
 	}
