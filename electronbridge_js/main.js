@@ -76,7 +76,6 @@ function main() {
 		width: 600,
 		height: 400,
 		resizable: true,
-		minorwindow: true,
 	});
 
 	windows.hide(STDERR_LOG_WINDOW_ID);
