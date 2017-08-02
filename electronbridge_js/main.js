@@ -71,7 +71,7 @@ function main() {
 
 	windows.new_window({
 		uid: STDERR_LOG_WINDOW_ID,
-		page: "pages/log.html",
+		page: "pages/log_simple.html",
 		name: "Client Log",
 		width: 600,
 		height: 400,
