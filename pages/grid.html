@@ -51,9 +51,9 @@
 
 	function pixels_from_x1y1x2y2(x1, y1, x2, y2) {
 		let xpixel1 = Math.floor(x1 * renderer.boxwidth + renderer.boxwidth / 2)
-		let ypixel1 = Math.floor(y1 * renderer.boxheight + renderer.boxwidth / 2)
+		let ypixel1 = Math.floor(y1 * renderer.boxheight + renderer.boxheight / 2)
 		let xpixel2 = Math.floor(x2 * renderer.boxwidth + renderer.boxwidth / 2)
-		let ypixel2 = Math.floor(y2 * renderer.boxheight + renderer.boxwidth / 2)
+		let ypixel2 = Math.floor(y2 * renderer.boxheight + renderer.boxheight / 2)
 		return [xpixel1, ypixel1, xpixel2, ypixel2]
 	}
 

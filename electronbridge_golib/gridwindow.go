@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -29,6 +30,7 @@ type GridWindow struct {
 	Highlight		Point						`json:"highlight"`
 
 	LastFlip		[20]byte					`json:"-"`
+	Mutex			sync.Mutex					`json:"-"`
 }
 
 type NewGridWinMsg struct {
@@ -41,6 +43,13 @@ type NewGridWinMsg struct {
 	BoxHeight		int							`json:"boxheight"`
 	FontPercent		int							`json:"fontpercent"`
 	Resizable		bool						`json:"resizable"`
+}
+
+type SpecialMsgContent struct {
+	Effect			string						`json:"effect"`
+	EffectID		int							`json:"effectid"`
+	Uid				int							`json:"uid"`
+	Args			[]interface{}				`json:"args"`
 }
 
 func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpercent int, resizable bool) *GridWindow {
@@ -74,12 +83,15 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 		panic("Failed to Marshal")
 	}
 
-	fmt.Printf("%s\n", string(s))
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 
 	return &w
 }
 
 func (w *GridWindow) Set(x, y int, char string, colour string) {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
 
 	if utf8.RuneCountInString(char) != 1 {
 		panic("GridWindow.Set(): utf8.RuneCountInString(char) != 1")
@@ -93,6 +105,7 @@ func (w *GridWindow) Set(x, y int, char string, colour string) {
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
 		return
 	}
+
 	w.Chars[index] = char
 	w.Colours[index] = colour
 }
@@ -102,20 +115,34 @@ func (w *GridWindow) SetPointSpot(point Point, spot Spot) {
 }
 
 func (w *GridWindow) Get(x, y int) Spot {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
 		return Spot{Char: " ", Colour: CLEAR_COLOUR}
 	}
+
 	char := w.Chars[index]
 	colour := w.Colours[index]
+
 	return Spot{Char: char, Colour: colour}
 }
 
 func (w *GridWindow) SetHighlight(x, y int) {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
 	w.Highlight = Point{x, y}
 }
 
 func (w *GridWindow) Clear() {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
 	for n := 0; n < len(w.Chars); n++ {
 		w.Chars[n] = " "
 		w.Colours[n] = CLEAR_COLOUR
@@ -124,6 +151,9 @@ func (w *GridWindow) Clear() {
 }
 
 func (w *GridWindow) Flip() {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
 
 	m := OutgoingMessage{
 		Command: "update",
@@ -141,7 +171,7 @@ func (w *GridWindow) Flip() {
 
 	if sum != w.LastFlip {
 		w.LastFlip = sum
-		fmt.Printf("%s\n", string(s))
+		OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 	}
 }
 
@@ -177,7 +207,9 @@ func (w *GridWindow) Special(effect string, timeout_duration time.Duration, args
 	effect_done_channels[c.EffectID] = ch
 	effect_done_channels_MUTEX.Unlock()
 
-	fmt.Printf("%s\n", string(s))
+	// With that done, it's safe to send the message. When we receive the reply, we'll be ready.
+
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 
 	// Now we wait for the message that the effect completed...
 	// Or the timeout ticker to fire.

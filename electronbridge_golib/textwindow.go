@@ -43,7 +43,7 @@ func NewTextWindow(name, page string, width, height int, resizable bool) *TextWi
 	if err != nil {
 		panic("Failed to Marshal")
 	}
-	fmt.Printf("%s\n", string(s))
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 
 	return &w
 }
@@ -72,5 +72,5 @@ func (w *TextWindow) Printf(format_string string, args ...interface{}) {
 	if err != nil {
 		panic("Failed to Marshal")
 	}
-	fmt.Printf("%s\n", string(s))
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 }

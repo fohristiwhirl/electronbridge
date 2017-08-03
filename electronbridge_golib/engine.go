@@ -9,6 +9,9 @@ import (
 	"sync"
 )
 
+var OUT_msg_chan = make(chan string)
+var ERR_msg_chan = make(chan string)
+
 var keypress_chan = make(chan string)
 var key_query_chan = make(chan chan string)
 var keyclear_chan = make(chan bool)
@@ -23,10 +26,13 @@ var effect_done_channels_MUTEX sync.Mutex
 // ----------------------------------------------------------
 
 type id_object struct {
+	mutex			sync.Mutex
 	current			int
 }
 
 func (i *id_object) next() int {
+	i.mutex.Lock()
+	defer i.mutex.Unlock()
 	i.current += 1
 	return i.current
 }
@@ -51,20 +57,6 @@ type Spot struct {
 type OutgoingMessage struct {
 	Command			string						`json:"command"`
 	Content			interface{}					`json:"content"`
-}
-
-// ----------------------------------------------------------
-
-type SpecialMsgContent struct {
-	Effect			string						`json:"effect"`
-	EffectID		int							`json:"effectid"`
-	Uid				int							`json:"uid"`
-	Args			[]interface{}				`json:"args"`
-}
-
-type SpecialMsg struct {
-	Command			string						`json:"command"`
-	Content			SpecialMsgContent			`json:"content"`
 }
 
 // ----------------------------------------------------------
@@ -115,9 +107,21 @@ type IncomingEffectDone struct {
 // ----------------------------------------------------------
 
 func init() {
+	go printer()
 	go listener()
 	go keymaster()
 	go mousemaster()
+}
+
+func printer() {
+	for {
+		select {
+		case s := <- OUT_msg_chan:
+			fmt.Printf(s)
+		case s := <- ERR_msg_chan:
+			fmt.Fprintf(os.Stderr, s)
+		}
+	}
 }
 
 func listener() {
@@ -296,7 +300,7 @@ func Alertf(format_string string, args ...interface{}) {
 	if err != nil {
 		panic("Failed to Marshal")
 	}
-	fmt.Printf("%s\n", string(s))
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 }
 
 func Logf(format_string string, args ...interface{}) {
@@ -314,5 +318,5 @@ func Logf(format_string string, args ...interface{}) {
 		msg += "\n"
 	}
 
-	fmt.Fprintf(os.Stderr, msg)
+	ERR_msg_chan <- fmt.Sprintf(msg)
 }
