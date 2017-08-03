@@ -128,10 +128,6 @@ function main() {
 			windows.update(j.content);
 		}
 
-		if (j.command === "special") {
-			windows.special(j.content);
-		}
-
 		if (j.command === "alert") {
 			alert(j.content);
 		}

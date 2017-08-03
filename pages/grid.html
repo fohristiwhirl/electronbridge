@@ -129,6 +129,10 @@
 
 		renderer.flip = () => {
 
+			// Do this at the start so we don't have to worry about adding this line before every return point
+
+			requestAnimationFrame(() => renderer.flip())
+
 			let opts = renderer.pending_flip_opts
 			if (!opts) {
 				return
@@ -159,23 +163,7 @@
 					}
 				}
 			}
-
-			requestAnimationFrame(() => renderer.flip())
 		};
-
-		renderer.finish_effect_after = (t, opts) => {
-			setTimeout(() => renderer.finish_effect(opts), t);
-		};
-
-		renderer.finish_effect = (opts) => {
-			renderer.virtue.clearRect(0, 0, canvas.width, canvas.height);
-			ipcRenderer.send("effect_done", {effectid: opts.effectid});
-		};
-
-		renderer.special = (opts) => {
-			renderer.finish_effect(opts)
-			// FIXME: actually use effects.
-		}
 
 		renderer.resize = (xpixels, ypixels) => {
 			let msg = {
@@ -205,13 +193,6 @@
 			return;
 		}
 		renderer.pending_flip_opts = opts
-	});
-
-	ipcRenderer.on("special", (event, opts) => {
-		if (!renderer.inited) {
-			return;
-		}
-		renderer.special(opts);
 	});
 
 	// --------------------------------------------------------------

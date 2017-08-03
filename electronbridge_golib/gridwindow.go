@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 	"unicode/utf8"
 )
 
@@ -43,13 +42,6 @@ type NewGridWinMsg struct {
 	BoxHeight		int							`json:"boxheight"`
 	FontPercent		int							`json:"fontpercent"`
 	Resizable		bool						`json:"resizable"`
-}
-
-type SpecialMsgContent struct {
-	Effect			string						`json:"effect"`
-	EffectID		int							`json:"effectid"`
-	Uid				int							`json:"uid"`
-	Args			[]interface{}				`json:"args"`
 }
 
 func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpercent int, resizable bool) *GridWindow {
@@ -173,59 +165,4 @@ func (w *GridWindow) Flip() {
 		w.LastFlip = sum
 		OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 	}
-}
-
-func (w *GridWindow) Special(effect string, timeout_duration time.Duration, args []interface{}) {
-
-	// Special effects. What is available depends on the contents of the html page.
-
-	c := SpecialMsgContent{
-		Effect: effect,
-		Uid: w.Uid,
-		EffectID: effect_id_maker.next(),
-		Args: args,
-	}
-
-	m := OutgoingMessage{
-		Command: "special",
-		Content: c,
-	}
-
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-
-	// We make a channel for the purpose of receiving a message when the effect completes,
-	// and add it to the global map of such channels.
-
-	ch := make(chan bool)
-
-	timeout := time.NewTimer(timeout_duration)
-
-	effect_done_channels_MUTEX.Lock()
-	effect_done_channels[c.EffectID] = ch
-	effect_done_channels_MUTEX.Unlock()
-
-	// With that done, it's safe to send the message. When we receive the reply, we'll be ready.
-
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
-
-	// Now we wait for the message that the effect completed...
-	// Or the timeout ticker to fire.
-
-	ChanLoop:
-	for {
-		select {
-		case <- ch:
-			break ChanLoop
-		case <- timeout.C:
-			Logf("Timed out waiting for effect %d (%s)", c.EffectID, effect)
-			break ChanLoop
-		}
-	}
-
-	effect_done_channels_MUTEX.Lock()
-	delete(effect_done_channels, c.EffectID)
-	effect_done_channels_MUTEX.Unlock()
 }

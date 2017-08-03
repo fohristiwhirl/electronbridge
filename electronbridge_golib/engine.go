@@ -20,9 +20,6 @@ var mousedown_chan = make(chan Point)
 var mouse_query_chan = make(chan chan Point)
 var mouseclear_chan = make(chan bool)
 
-var effect_done_channels = make(map[int]chan bool)
-var effect_done_channels_MUTEX sync.Mutex
-
 // ----------------------------------------------------------
 
 type id_object struct {
@@ -174,27 +171,6 @@ func listener() {
 			}
 		}
 
-		if type_obj.Type == "effect_done" {
-
-			var effect_done_msg IncomingEffectDone
-
-			err := json.Unmarshal(scanner.Bytes(), &effect_done_msg)
-
-			if err != nil {
-				continue
-			}
-
-			effect_done_channels_MUTEX.Lock()
-			ch := effect_done_channels[effect_done_msg.Content.EffectID]
-			effect_done_channels_MUTEX.Unlock()
-
-			if ch != nil {
-				go effect_notifier(ch)
-			} else {
-				Logf("Received done for effect %d but no notifier was known", effect_done_msg.Content.EffectID)
-			}
-		}
-
 		if type_obj.Type == "panic" {
 			panic("Deliberate panic induced by front end.")
 		}
@@ -279,10 +255,6 @@ func GetMousedown() (Point, error) {
 
 func ClearMouseQueue() {
 	mouseclear_chan <- true
-}
-
-func effect_notifier(ch chan bool) {
-	ch <- true
 }
 
 // ----------------------------------------------------------

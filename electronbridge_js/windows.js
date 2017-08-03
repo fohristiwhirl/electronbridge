@@ -3,7 +3,6 @@
 const alert = require("./alert");
 const assert = require("assert");
 const electron = require("electron");
-const ipcMain = require("electron").ipcMain;
 const url = require("url");
 
 // The windobject is our fundamental object, containing fields:
@@ -89,11 +88,6 @@ function new_window(config) {
 function update(content) {
 	let windobject = windobjects[content.uid];
 	send_or_queue(windobject, "update", content);
-}
-
-function special(content) {
-	let windobject = windobjects[content.uid];
-	send_or_queue(windobject, "special", content);
 }
 
 function send_or_queue(windobject, channel, msg) {
@@ -200,7 +194,6 @@ exports.get_windobject_from_event = get_windobject_from_event;
 exports.resize = resize;
 exports.new_window = new_window;
 exports.update = update;
-exports.special = special;
 exports.handle_ready = handle_ready;
 exports.hide = hide;
 exports.show = show;
