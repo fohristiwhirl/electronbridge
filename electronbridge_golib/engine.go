@@ -110,6 +110,8 @@ func init() {
 	go mousemaster()
 }
 
+// ----------------------------------------------------------
+
 func printer() {
 	for {
 		select {
@@ -120,6 +122,8 @@ func printer() {
 		}
 	}
 }
+
+// ----------------------------------------------------------
 
 func listener() {
 
@@ -177,6 +181,8 @@ func listener() {
 	}
 }
 
+// ----------------------------------------------------------
+
 func keymaster() {
 
 	var keyqueue []string
@@ -217,6 +223,8 @@ func ClearKeyQueue() {
 	keyclear_chan <- true
 }
 
+// ----------------------------------------------------------
+
 func mousemaster() {
 
 	var mousequeue []Point
@@ -255,6 +263,18 @@ func GetMousedown() (Point, error) {
 
 func ClearMouseQueue() {
 	mouseclear_chan <- true
+}
+
+// ----------------------------------------------------------
+
+func sendoutgoingmessage(m OutgoingMessage) {
+
+	s, err := json.Marshal(m)
+	if err != nil {
+		panic("Failed to Marshal")
+	}
+
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
 }
 
 // ----------------------------------------------------------
@@ -300,9 +320,5 @@ func AllowQuit() {
 		Content: nil,
 	}
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	sendoutgoingmessage(m)
 }

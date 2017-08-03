@@ -1,7 +1,6 @@
 package electronbridge
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -41,11 +40,7 @@ func NewTextWindow(name, page string, width, height int, starthidden, resizable 
 		},
 	}
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	sendoutgoingmessage(m)
 
 	return &w
 }
@@ -70,9 +65,5 @@ func (w *TextWindow) Printf(format_string string, args ...interface{}) {
 		},
 	}
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	sendoutgoingmessage(m)
 }

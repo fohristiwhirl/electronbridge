@@ -72,12 +72,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 		},
 	}
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	sendoutgoingmessage(m)
 
 	return &w
 }
@@ -154,12 +149,14 @@ func (w *GridWindow) Flip() {
 		Content: w,
 	}
 
+	// Don't use sendoutgoingmessage for this...
+
 	s, err := json.Marshal(m)
 	if err != nil {
 		panic("Failed to Marshal")
 	}
 
-	// We cache the last flip and don't repeat it if we don't need to.
+	// Because we cache the last flip and don't repeat it if we don't need to.
 
 	sum := sha1.Sum(s)
 
