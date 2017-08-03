@@ -62,19 +62,21 @@
 	function make_renderer() {
 
 		let renderer = {
-			ready_to_flip: false,
-			postponed_flip: null,
+			canvas: document.querySelector("canvas"),
+			virtue: canvas.getContext("2d"),
+			pending_flip_opts: null,
+			inited: false,
 		};
 
 		renderer.init = (opts) => {
+
+			renderer.inited = true;
 
 			renderer.width = opts.width;
 			renderer.height = opts.height;
 			renderer.boxwidth = opts.boxwidth;
 			renderer.boxheight = opts.boxheight;
 			renderer.uid = opts.uid;
-			renderer.canvas = document.querySelector("canvas");
-			renderer.virtue = canvas.getContext("2d");
 
 			// Make the table...
 
@@ -97,15 +99,6 @@
 			// (Anyway, this now sets the canvas to be the right size if it wasn't already.)
 
 			renderer.resize(opts.width * opts.boxwidth, opts.height * opts.boxheight);
-
-			// Set the "ready" flag and then deal with any postponed flip.
-
-			renderer.ready_to_flip = true;
-
-			if (renderer.postponed_flip != null) {
-				renderer.postponed_flip();
-				renderer.postponed_flip = null;
-			}
 
 			// Input handlers...
 
@@ -130,14 +123,17 @@
 					});
 				}
 			}
+
+			requestAnimationFrame(() => renderer.flip())
 		};
 
-		renderer.flip = (opts) => {
+		renderer.flip = () => {
 
-			if (renderer.ready_to_flip !== true) {
-				renderer.postponed_flip = () => renderer.flip(opts);
-				return;
+			let opts = renderer.pending_flip_opts
+			if (!opts) {
+				return
 			}
+			renderer.pending_flip_opts = null
 
 			let charstring = opts.chars;
 			let colourstring = opts.colours;
@@ -163,6 +159,8 @@
 					}
 				}
 			}
+
+			requestAnimationFrame(() => renderer.flip())
 		};
 
 		renderer.finish_effect_after = (t, opts) => {
@@ -176,7 +174,7 @@
 
 		renderer.special = (opts) => {
 			renderer.finish_effect(opts)
-			// FIXME: actually use effects
+			// FIXME: actually use effects.
 		}
 
 		renderer.resize = (xpixels, ypixels) => {
@@ -203,10 +201,16 @@
 	});
 
 	ipcRenderer.on("update", (event, opts) => {
-		renderer.flip(opts);
+		if (!renderer.inited) {
+			return;
+		}
+		renderer.pending_flip_opts = opts
 	});
 
 	ipcRenderer.on("special", (event, opts) => {
+		if (!renderer.inited) {
+			return;
+		}
 		renderer.special(opts);
 	});
 
