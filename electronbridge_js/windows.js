@@ -44,6 +44,7 @@ function new_window(config) {
 	}
 
 	let win = new electron.BrowserWindow({
+		show: false,
 		title: config.name,
 		width: win_pixel_width,
 		height: win_pixel_height,
@@ -62,8 +63,8 @@ function new_window(config) {
 		win.setMenu(null);
 	}
 
-	if (config.starthidden === true) {
-		win.hide();
+	if (config.starthidden !== true) {
+		win.show();
 	}
 
 	win.on("close", (evt) => {

@@ -71,10 +71,9 @@ function main() {
 		name: "Client Log",
 		width: 600,
 		height: 400,
+		starthidden: true,
 		resizable: true,
 	});
-
-	windows.hide(STDERR_LOG_WINDOW_ID);
 
 	function write_to_log(msg) {
 		if (msg instanceof Error) {
