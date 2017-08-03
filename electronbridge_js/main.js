@@ -143,6 +143,7 @@ function main() {
 
 	stderr_scanner.on("line", (line) => {
 		write_to_log(line)
+		windows.show(STDERR_LOG_WINDOW_ID)
 	});
 
 	// Messages from the renderer..............................................

@@ -65,6 +65,7 @@
 			canvas: document.querySelector("canvas"),
 			virtue: canvas.getContext("2d"),
 			pending_flip_opts: null,
+			dropped_frames: 0,
 			inited: false,
 		};
 
@@ -191,6 +192,9 @@
 	ipcRenderer.on("update", (event, opts) => {
 		if (!renderer.inited) {
 			return;
+		}
+		if (renderer.pending_flip_opts != null) {
+			renderer.dropped_frames += 1
 		}
 		renderer.pending_flip_opts = opts
 	});
