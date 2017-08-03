@@ -11,8 +11,9 @@ const (
 )
 
 func main() {
-	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, true)
-	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, true)
+	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, false, true)
+	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, false, true)
+	electron.AllowQuit()
 
 	i := 0
 
@@ -47,8 +48,9 @@ const (
 )
 
 func main() {
-	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, true)
-	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, true)
+	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, false, true)
+	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, false, true)
+	electron.AllowQuit()
 
 	i := 0
 

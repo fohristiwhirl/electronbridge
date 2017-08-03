@@ -15,6 +15,7 @@ type NewTextWinMsg struct {
 	Uid				int							`json:"uid"`
 	Width			int							`json:"width"`
 	Height			int							`json:"height"`
+	StartHidden		bool						`json:"starthidden"`
 	Resizable		bool						`json:"resizable"`
 }
 
@@ -23,7 +24,7 @@ type TextUpdateContent struct {
 	Msg				string						`json:"msg"`
 }
 
-func NewTextWindow(name, page string, width, height int, resizable bool) *TextWindow {
+func NewTextWindow(name, page string, width, height int, starthidden, resizable bool) *TextWindow {
 
 	uid := id_maker.next()
 
@@ -35,6 +36,7 @@ func NewTextWindow(name, page string, width, height int, resizable bool) *TextWi
 			Uid: uid,
 			Width: width,
 			Height: height,
+			StartHidden: starthidden,
 			Resizable: resizable,
 		},
 	}

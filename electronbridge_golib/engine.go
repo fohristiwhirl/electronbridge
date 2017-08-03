@@ -292,3 +292,17 @@ func Logf(format_string string, args ...interface{}) {
 
 	ERR_msg_chan <- fmt.Sprintf(msg)
 }
+
+func AllowQuit() {
+
+	m := OutgoingMessage{
+		Command: "allowquit",
+		Content: nil,
+	}
+
+	s, err := json.Marshal(m)
+	if err != nil {
+		panic("Failed to Marshal")
+	}
+	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+}

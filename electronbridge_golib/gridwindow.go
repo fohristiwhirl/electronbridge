@@ -41,10 +41,11 @@ type NewGridWinMsg struct {
 	BoxWidth		int							`json:"boxwidth"`
 	BoxHeight		int							`json:"boxheight"`
 	FontPercent		int							`json:"fontpercent"`
+	StartHidden		bool						`json:"starthidden"`
 	Resizable		bool						`json:"resizable"`
 }
 
-func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpercent int, resizable bool) *GridWindow {
+func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpercent int, starthidden, resizable bool) *GridWindow {
 
 	uid := id_maker.next()
 
@@ -66,6 +67,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 			BoxWidth: boxwidth,
 			BoxHeight: boxheight,
 			FontPercent: fontpercent,
+			StartHidden: starthidden,
 			Resizable: resizable,
 		},
 	}

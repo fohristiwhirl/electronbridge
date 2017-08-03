@@ -11,15 +11,11 @@ const windows = require("./windows");
 const STDERR_LOG_WINDOW_ID = -1
 const TARGET_APP = "app.exe"
 
-
 electron.app.on("ready", () => {
 	main();
 });
 
-
-function main() {
-
-	// Menu...................................................................
+function rebuild_menu(write_to_exe) {
 
 	const template = [
 		{
@@ -31,10 +27,7 @@ function main() {
 				{
 					type: "separator"
 				},
-				{
-					label: "Show All App Windows",
-					click: () => windows.show_all_except([STDERR_LOG_WINDOW_ID])
-				},
+				windows.make_submenu(),
 			]
 		},
 		{
@@ -66,6 +59,9 @@ function main() {
 
 	const menu = electron.Menu.buildFromTemplate(template);
 	electron.Menu.setApplicationMenu(menu);
+}
+
+function main() {
 
 	// Create our log window..................................................
 
@@ -121,7 +117,7 @@ function main() {
 
 		if (j.command === "new") {
 			windows.new_window(j.content);
-			windows.quit_now_possible();			// Tell windows module that quitting the app is allowed (i.e. if all windows get closed).
+			rebuild_menu(write_to_exe);
 		}
 
 		if (j.command === "update") {
@@ -130,6 +126,10 @@ function main() {
 
 		if (j.command === "alert") {
 			alert(j.content);
+		}
+
+		if (j.command === "allowquit") {
+			windows.quit_now_possible();
 		}
 	});
 
@@ -238,17 +238,5 @@ function main() {
 	ipcMain.on("ready", (event, opts) => {
 		let windobject = windows.get_windobject_from_event(event);
 		windows.handle_ready(windobject, opts);
-	});
-
-	ipcMain.on("effect_done", (event, opts) => {
-		let windobject = windows.get_windobject_from_event(event);
-		let output = {
-			type: "effect_done",
-			content: {
-				uid: windobject.uid,
-				effectid: opts.effectid,
-			}
-		}
-		write_to_exe(JSON.stringify(output));
 	});
 }

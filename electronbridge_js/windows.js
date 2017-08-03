@@ -62,6 +62,10 @@ function new_window(config) {
 		win.setMenu(null);
 	}
 
+	if (config.starthidden === true) {
+		win.hide();
+	}
+
 	win.on("close", (evt) => {
 		evt.preventDefault();
 		win.hide();
@@ -190,6 +194,34 @@ function quit_now_possible() {
 	quit_possible = true;
 }
 
+function make_submenu() {
+
+	let ret = {
+		label: "Windows",
+		submenu: [],
+	}
+
+	let keys = Object.keys(windobjects);
+
+	for (let n = 0; n < keys.length; n++) {
+
+		let key = keys[n];
+
+		if (key < 0) {
+			continue;
+		}
+
+		let win_name = windobjects[key].config.name
+
+		ret.submenu.push({
+			label: win_name,
+			click: () => show(key)
+		})
+	}
+
+	return ret
+}
+
 exports.get_windobject_from_event = get_windobject_from_event;
 exports.resize = resize;
 exports.new_window = new_window;
@@ -199,3 +231,4 @@ exports.hide = hide;
 exports.show = show;
 exports.show_all_except = show_all_except;
 exports.quit_now_possible = quit_now_possible;
+exports.make_submenu = make_submenu;
