@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	CLEAR_CHAR = " "
 	CLEAR_COLOUR = "w"
 )
 
@@ -110,7 +111,7 @@ func (w *GridWindow) Get(x, y int) Spot {
 
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
-		return Spot{Char: " ", Colour: CLEAR_COLOUR}
+		return Spot{Char: CLEAR_CHAR, Colour: CLEAR_COLOUR}
 	}
 
 	char := w.Chars[index]
@@ -133,7 +134,7 @@ func (w *GridWindow) Clear() {
 	defer w.Mutex.Unlock()
 
 	for n := 0; n < len(w.Chars); n++ {
-		w.Chars[n] = " "
+		w.Chars[n] = CLEAR_CHAR
 		w.Colours[n] = CLEAR_COLOUR
 	}
 	w.Highlight = Point{-1, -1}
