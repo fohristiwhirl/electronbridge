@@ -19,17 +19,21 @@ function rebuild_menu(write_to_exe) {
 
 	const template = [
 		{
-			label: "Game",
+			label: "App",
 			submenu: [
 				{
-					role: "quit"
+					label: "About",
+					click: () => alert("Electron Bridge: window manager for Golang via Electron"),
 				},
 				{
 					type: "separator"
 				},
-				windows.make_submenu(),
+				{
+					role: "quit"
+				},
 			]
 		},
+		windows.make_submenu(),
 		{
 			label: "Dev",
 			submenu: [

@@ -155,6 +155,8 @@
 						let colour = colour_dict[colour_key];
 						if (colour) {
 							element.style["color"] = colour;
+						} else {
+							element.style["color"] = "#ffffff"
 						}
 						if (x === highlight.x && y === highlight.y) {
 							element.style["background-color"] = "#494949";
