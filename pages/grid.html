@@ -33,10 +33,8 @@
 	"use strict";
 
 	const alert = require("../electronbridge_js/alert");
-	const child_process = require("child_process");
 	const fs = require("fs");
 	const ipcRenderer = require("electron").ipcRenderer;
-	const readline = require("readline");
 
 	// --------------------------------------------------------------
 
@@ -46,14 +44,6 @@
 
 	function id_from_xy(x, y) {
 		return `td_${x}_${y}`;
-	}
-
-	function pixels_from_x1y1x2y2(x1, y1, x2, y2) {
-		let xpixel1 = Math.floor(x1 * renderer.boxwidth + renderer.boxwidth / 2)
-		let ypixel1 = Math.floor(y1 * renderer.boxheight + renderer.boxheight / 2)
-		let xpixel2 = Math.floor(x2 * renderer.boxwidth + renderer.boxwidth / 2)
-		let ypixel2 = Math.floor(y2 * renderer.boxheight + renderer.boxheight / 2)
-		return [xpixel1, ypixel1, xpixel2, ypixel2]
 	}
 
 	// --------------------------------------------------------------
@@ -66,6 +56,7 @@
 			inited: false,
 			highlight_x: -1,
 			highlight_y: -1,
+			pending_flash_fades: [],
 		};
 
 		renderer.init = (opts) => {
@@ -88,10 +79,10 @@
 					let id = id_from_xy(x, y);
 					html += `<td><div id="${id}" style="width: ${opts.boxwidth}; height: ${opts.boxheight}; overflow: hidden;"></div></td>`;
 				}
-				html += "</tr>"
+				html += "</tr>";
 			}
 
-			html += "</table>"
+			html += "</table>";
 
 			document.getElementById("maintable").innerHTML = html;
 
@@ -112,7 +103,7 @@
 			for (let x = 0; x < renderer.width; x++) {
 				for (let y = 0; y < renderer.height; y++) {
 					let id = id_from_xy(x, y);
-					let element = document.getElementById(id)
+					let element = document.getElementById(id);
 					element.addEventListener("mousedown", (evt) => {
 						evt.preventDefault();								// Prevent selecting text with the mouse
 						ipcRenderer.send("mousedown", {x: x, y: y});		// x and y work despite closures because we use "let" in the loops
@@ -123,20 +114,25 @@
 				}
 			}
 
-			requestAnimationFrame(() => renderer.flip())
+			requestAnimationFrame(() => renderer.flip());
 		};
 
 		renderer.flip = () => {
 
 			// Do this at the start so we don't have to worry about adding this line before every return point
 
-			requestAnimationFrame(() => renderer.flip())
+			requestAnimationFrame(() => renderer.flip());
 
-			let opts = renderer.pending_flip_opts
-			if (!opts) {
-				return
+			for (let n = 0; n < renderer.pending_flash_fades.length; n++) {
+				renderer.pending_flash_fades[n]();
 			}
-			renderer.pending_flip_opts = null
+			renderer.pending_flash_fades = [];
+
+			let opts = renderer.pending_flip_opts;
+			if (!opts) {
+				return;
+			}
+			renderer.pending_flip_opts = null;
 
 			// There's some nonsense in JS where astral characters are split in 2.
 			// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
@@ -163,8 +159,8 @@
 
 				// Set new highlight...
 
-				renderer.highlight_x = highlight.x
-				renderer.highlight_y = highlight.y
+				renderer.highlight_x = highlight.x;
+				renderer.highlight_y = highlight.y;
 
 				if (renderer.highlight_x >= 0) {
 					let id = id_from_xy(renderer.highlight_x, renderer.highlight_y);
@@ -209,11 +205,15 @@
 							if (flash_colour) {
 								element.style["transition"] = "none";
 								element.style["background-color"] = flash_colour;
-								setTimeout(() => {
+
+								// I don't think we can start the fade immediately (we
+								// need to wait for a paint I think, otherwise Chrome
+								// doesn't know anything happened?)
+
+								renderer.pending_flash_fades.push(() => {
 									element.style["transition"] = "background-color .50s ease-in-out";
-									element.style["background-color"] =
-											renderer.highlight_x == x && renderer.highlight_y == y ? "#494949" : "#000000";
-								}, 100);
+									element.style["background-color"] = renderer.highlight_x == x && renderer.highlight_y == y ? "#494949" : "#000000";
+								});
 							}
 						}
 					}
@@ -247,9 +247,9 @@
 			return;
 		}
 		if (renderer.pending_flip_opts != null) {
-			renderer.dropped_frames += 1
+			renderer.dropped_frames += 1;
 		}
-		renderer.pending_flip_opts = opts
+		renderer.pending_flip_opts = opts;
 	});
 
 	// --------------------------------------------------------------

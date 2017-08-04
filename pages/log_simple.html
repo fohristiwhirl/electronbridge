@@ -25,13 +25,13 @@
 	const ipcRenderer = require("electron").ipcRenderer;
 
 	function clear_all() {
-		let pre = document.getElementById("log")
-		pre.innerHTML = ""
+		let pre = document.getElementById("log");
+		pre.innerHTML = "";
 	}
 
 	ipcRenderer.on("update", (event, opts) => {
-		let pre = document.getElementById("log")
-		pre.innerHTML += opts.msg
+		let pre = document.getElementById("log");
+		pre.innerHTML += opts.msg;
 	});
 
 	ipcRenderer.send("ready", null);

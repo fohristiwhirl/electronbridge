@@ -26,7 +26,7 @@ function resize(windobject, opts) {
 	if (windobject) {
 		windobject.win.setContentSize(opts.xpixels, opts.ypixels);
 	}
-};
+}
 
 function new_window(config) {
 
@@ -88,7 +88,7 @@ function new_window(config) {
 			win.webContents.send(channel, msg);
 		}
 	};
-};
+}
 
 function update(content) {
 	let windobject = windobjects[content.uid];
@@ -100,7 +100,7 @@ function send_or_queue(windobject, channel, msg) {
 		return;
 	}
 	if (windobject.ready !== true) {
-		windobject.queue.push(() => windobject.send(channel, msg))
+		windobject.queue.push(() => windobject.send(channel, msg));
 		return;
 	}
 	try {
@@ -135,7 +135,7 @@ function hide(uid) {
 	if (windobject === undefined) {
 		return;
 	}
-	windobject.win.hide()
+	windobject.win.hide();
 }
 
 function show(uid) {
@@ -143,7 +143,7 @@ function show(uid) {
 	if (windobject === undefined) {
 		return;
 	}
-	windobject.win.show()
+	windobject.win.show();
 }
 
 function show_all_except(uid_array) {
@@ -200,7 +200,7 @@ function make_submenu() {
 	let ret = {
 		label: "Windows",
 		submenu: [],
-	}
+	};
 
 	let keys = Object.keys(windobjects);
 
@@ -212,15 +212,15 @@ function make_submenu() {
 			continue;
 		}
 
-		let win_name = windobjects[key].config.name
+		let win_name = windobjects[key].config.name;
 
 		ret.submenu.push({
 			label: win_name,
 			click: () => show(key)
-		})
+		});
 	}
 
-	return ret
+	return ret;
 }
 
 exports.get_windobject_from_event = get_windobject_from_event;

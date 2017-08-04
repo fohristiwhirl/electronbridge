@@ -40,7 +40,7 @@
 
 		let list = document.getElementById("log");
 		list.innerHTML = "<li>" + opts.msg + "</li>" + list.innerHTML;
-		list.insertBefore(new_item, list.childNodes[0])
+		list.insertBefore(new_item, list.childNodes[0]);
 
 		while (list.childNodes.length > 200) {
 			list.removeChild(list.lastChild)

@@ -8,8 +8,8 @@ const ipcMain = require("electron").ipcMain;
 const readline = require("readline");
 const windows = require("./windows");
 
-const STDERR_LOG_WINDOW_ID = -1
-const TARGET_APP = "app.exe"
+const STDERR_LOG_WINDOW_ID = -1;
+const TARGET_APP = "app.exe";
 
 electron.app.on("ready", () => {
 	main();
@@ -53,7 +53,7 @@ function rebuild_menu(write_to_exe) {
 						let output = {
 							type: "panic",
 							content: null,
-						}
+						};
 						write_to_exe(JSON.stringify(output));
 					}
 				},
@@ -145,8 +145,8 @@ function main() {
 	});
 
 	stderr_scanner.on("line", (line) => {
-		write_to_log(line)
-		windows.show(STDERR_LOG_WINDOW_ID)
+		write_to_log(line);
+		windows.show(STDERR_LOG_WINDOW_ID);
 	});
 
 	// Messages from the renderer..............................................
@@ -156,7 +156,7 @@ function main() {
 		let windobject = windows.get_windobject_from_event(event);
 
 		if (windobject === undefined) {
-			return
+			return;
 		}
 
 		let output = {
@@ -176,7 +176,7 @@ function main() {
 		let windobject = windows.get_windobject_from_event(event);
 
 		if (windobject === undefined) {
-			return
+			return;
 		}
 
 		let output = {
@@ -196,7 +196,7 @@ function main() {
 		let windobject = windows.get_windobject_from_event(event);
 
 		if (windobject === undefined) {
-			return
+			return;
 		}
 
 		let output = {
@@ -207,7 +207,7 @@ function main() {
 				x: msg.x,
 				y: msg.y
 			}
-		}
+		};
 
 		write_to_exe(JSON.stringify(output));
 	});
@@ -217,7 +217,7 @@ function main() {
 		let windobject = windows.get_windobject_from_event(event);
 
 		if (windobject === undefined) {
-			return
+			return;
 		}
 
 		let output = {
@@ -228,7 +228,7 @@ function main() {
 				x: msg.x,
 				y: msg.y
 			}
-		}
+		};
 
 		write_to_exe(JSON.stringify(output));
 	});
