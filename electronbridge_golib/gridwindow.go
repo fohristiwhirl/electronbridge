@@ -1,9 +1,7 @@
 package electronbridge
 
 import (
-	"crypto/sha1"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -27,9 +25,9 @@ type GridWindow struct {
 	Height			int							`json:"height"`
 	Chars			StringSlice					`json:"chars"`
 	Colours			StringSlice					`json:"colours"`
+	Flashes			StringSlice					`json:"flashes"`
 	Highlight		Point						`json:"highlight"`
 
-	LastFlip		[20]byte					`json:"-"`
 	Mutex			sync.Mutex					`json:"-"`
 }
 
@@ -54,6 +52,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 
 	w.Chars = make([]string, width * height)
 	w.Colours = make([]string, width * height)
+	w.Flashes = make([]string, width * height)
 
 	w.Clear()
 
@@ -100,6 +99,19 @@ func (w *GridWindow) Set(x, y int, char string, colour string) {
 	w.Colours[index] = colour
 }
 
+func (w *GridWindow) SetFlash(x, y int, colour string) {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
+	index := y * w.Width + x
+	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
+		return
+	}
+
+	w.Flashes[index] = colour
+}
+
 func (w *GridWindow) SetPointSpot(point Point, spot Spot) {
 	w.Set(point.X, point.Y, spot.Char, spot.Colour)
 }
@@ -130,6 +142,9 @@ func (w *GridWindow) SetHighlight(x, y int) {
 
 func (w *GridWindow) Clear() {
 
+	// Note that flashes are not cleared here.
+	// They are however automatically cleared after each flip.
+
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
@@ -140,29 +155,28 @@ func (w *GridWindow) Clear() {
 	w.Highlight = Point{-1, -1}
 }
 
-func (w *GridWindow) Flip() {
+func (w *GridWindow) ClearFlashes() {
 
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
+
+	for n := 0; n < len(w.Flashes); n++ {
+		w.Flashes[n] = " "
+	}
+}
+
+func (w *GridWindow) Flip() {
+
+	w.Mutex.Lock()
 
 	m := OutgoingMessage{
 		Command: "update",
 		Content: w,
 	}
 
-	// Don't use sendoutgoingmessage for this...
+	sendoutgoingmessage(m)
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
+	w.Mutex.Unlock()	// Must do this before calling w.ClearFlashes()
 
-	// Because we cache the last flip and don't repeat it if we don't need to.
-
-	sum := sha1.Sum(s)
-
-	if sum != w.LastFlip {
-		w.LastFlip = sum
-		OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
-	}
+	w.ClearFlashes()
 }
