@@ -28,7 +28,6 @@
 <body>
 
 <div id="maintable" style="position: absolute;"></div>
-<canvas id="canvas" class="overlay" style="position: absolute;"></canvas>
 
 <script>
 	"use strict";
@@ -62,11 +61,11 @@
 	function make_renderer() {
 
 		let renderer = {
-			canvas: document.querySelector("canvas"),
-			virtue: canvas.getContext("2d"),
 			pending_flip_opts: null,
 			dropped_frames: 0,
 			inited: false,
+			highlight_x: -1,
+			highlight_y: -1,
 		};
 
 		renderer.init = (opts) => {
@@ -97,7 +96,6 @@
 			document.getElementById("maintable").innerHTML = html;
 
 			// Although the window is probably already the correct size, do this anyway...
-			// (Anyway, this now sets the canvas to be the right size if it wasn't already.)
 
 			renderer.resize(opts.width * opts.boxwidth, opts.height * opts.boxheight);
 
@@ -140,9 +138,45 @@
 			}
 			renderer.pending_flip_opts = null
 
-			let charstring = opts.chars;
-			let colourstring = opts.colours;
+			// There's some nonsense in JS where astral characters are split in 2.
+			// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
+
+			let char_array = Array.from(opts.chars);
+			let colour_array = Array.from(opts.colours);
+			let flash_array = Array.from(opts.flashes);
 			let highlight = opts.highlight;
+
+			// Highlight... (grey square)
+
+			if (highlight.x !== renderer.highlight_x || highlight.y !== renderer.highlight_y) {
+
+				// Clear old highlight...
+
+				if (renderer.highlight_x >= 0) {
+					let id = id_from_xy(renderer.highlight_x, renderer.highlight_y);
+					let element = document.getElementById(id);
+					if (element) {
+						element.style["transition"] = "none";
+						element.style["background-color"] = "#000000";
+					}
+				}
+
+				// Set new highlight...
+
+				renderer.highlight_x = highlight.x
+				renderer.highlight_y = highlight.y
+
+				if (renderer.highlight_x >= 0) {
+					let id = id_from_xy(renderer.highlight_x, renderer.highlight_y);
+					let element = document.getElementById(id);
+					if (element) {
+						element.style["transition"] = "none";
+						element.style["background-color"] = "#494949";
+					}
+				}
+			}
+
+			// Character, colour, and flashes...
 
 			for (let x = 0; x < renderer.width; x++) {
 				for (let y = 0; y < renderer.height; y++) {
@@ -150,18 +184,37 @@
 					let id = id_from_xy(x, y);
 					let element = document.getElementById(id);
 					if (element) {
-						element.innerHTML = charstring.charAt(index);
-						let colour_key = colourstring.charAt(index);
+
+						// Set character...
+
+						element.innerHTML = char_array[index];
+
+						// Set colour...
+
+						let colour_key = colour_array[index];
 						let colour = colour_dict[colour_key];
+
 						if (colour) {
 							element.style["color"] = colour;
 						} else {
-							element.style["color"] = "#ffffff"
+							element.style["color"] = "#ffffff";
 						}
-						if (x === highlight.x && y === highlight.y) {
-							element.style["background-color"] = "#494949";
-						} else {
-							element.style["background-color"] = "#000000";
+
+						// Handle flashes...
+
+						let flash_key = flash_array[index];
+
+						if (flash_key !== " ") {
+							let flash_colour = colour_dict[flash_key];
+							if (flash_colour) {
+								element.style["transition"] = "none";
+								element.style["background-color"] = flash_colour;
+								setTimeout(() => {
+									element.style["transition"] = "background-color .50s ease-in-out";
+									element.style["background-color"] =
+											renderer.highlight_x == x && renderer.highlight_y == y ? "#494949" : "#000000";
+								}, 100);
+							}
 						}
 					}
 				}
@@ -174,8 +227,6 @@
 				ypixels: ypixels,
 			};
 			ipcRenderer.send("request_resize", msg);
-			canvas.width = xpixels;
-			canvas.height = ypixels;
 		};
 
 		return renderer;
