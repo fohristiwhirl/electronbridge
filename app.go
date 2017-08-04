@@ -2,17 +2,17 @@ package main
 
 import (
 	"fmt"
+	"time"
 	electron "./electronbridge_golib"
 )
 
 const (
 	WIDTH = 40
-	HEIGHT = 30
+	HEIGHT = 3
 )
 
 func main() {
 	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, false, true)
-	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, false, true)
 	electron.AllowQuit()
 
 	i := 0
@@ -28,9 +28,7 @@ func main() {
 
 		main_window.Flip()
 
-		if i % 50 == 0 {
-			text_window.Printf("Reached i %d\n", i)
-		}
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
