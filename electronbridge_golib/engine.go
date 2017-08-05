@@ -18,7 +18,13 @@ type keypress struct {
 	uid int
 }
 
-type keyquery struct {
+type key_map_query struct {
+	response_chan chan bool
+	uid int
+	key string
+}
+
+type key_queue_query struct {
 	response_chan chan string
 	uid int
 }
@@ -36,9 +42,11 @@ type mousequery struct {
 var OUT_msg_chan = make(chan string)
 var ERR_msg_chan = make(chan string)
 
-var keypress_chan = make(chan keypress)
-var key_query_chan = make(chan keyquery)
-var keyclear_chan = make(chan int)
+var keydown_chan = make(chan keypress)
+var keyup_chan = make(chan keypress)
+var key_map_query_chan = make(chan key_map_query)
+var key_queue_query_chan = make(chan key_queue_query)
+var key_queue_clear_chan = make(chan int)
 
 var mousedown_chan = make(chan mousepress)
 var mouse_query_chan = make(chan mousequery)
@@ -180,7 +188,9 @@ func listener() {
 			}
 
 			if key_msg.Content.Down {
-				keypress_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
+				keydown_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
+			} else {
+				keyup_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
 			}
 		}
 
@@ -209,23 +219,66 @@ func listener() {
 
 func keymaster() {
 
+	// Note: at some point we might want both the ability to query a queue
+	// of keystrokes and an ability to see what keys are down NOW.
+
 	keyqueues := make(map[int][]string)
+	keymaps := make(map[int]map[string]bool)
 
 	for {
 		select {
-		case query := <- key_query_chan:
+
+		// Query of the map...
+
+		case query := <- key_map_query_chan:
+
+			query.response_chan <- keymaps[query.uid][query.key]
+
+		// Query of the queue...
+
+		case query := <- key_queue_query_chan:
+
 			if len(keyqueues[query.uid]) == 0 {
 				query.response_chan <- ""
 			} else {
 				query.response_chan <- keyqueues[query.uid][0]
 				keyqueues[query.uid] = keyqueues[query.uid][1:]
 			}
-		case key_msg := <- keypress_chan:
+
+		// Updates...
+
+		case key_msg := <- keydown_chan:
+
 			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
-		case clear_uid := <- keyclear_chan:
+			if keymaps[key_msg.uid] == nil {
+				keymaps[key_msg.uid] = make(map[string]bool)
+			}
+			keymaps[key_msg.uid][key_msg.key] = true
+
+		case key_msg := <- keyup_chan:
+
+			if keymaps[key_msg.uid] == nil {
+				keymaps[key_msg.uid] = make(map[string]bool)
+			}
+			keymaps[key_msg.uid][key_msg.key] = false
+
+		// Queue clear...
+
+		case clear_uid := <- key_queue_clear_chan:
 			keyqueues[clear_uid] = nil
 		}
 	}
+}
+
+func GetKeyDown(w Window, key string) bool {
+
+	uid := w.GetUID()
+
+	response_chan := make(chan bool)
+
+	key_map_query_chan <- key_map_query{response_chan: response_chan, uid: uid, key: key}
+
+	return <- response_chan
 }
 
 func GetKeypress(w Window) (string, error) {
@@ -234,7 +287,7 @@ func GetKeypress(w Window) (string, error) {
 
 	response_chan := make(chan string)
 
-	key_query_chan <- keyquery{response_chan: response_chan, uid: uid}
+	key_queue_query_chan <- key_queue_query{response_chan: response_chan, uid: uid}
 
 	key := <- response_chan
 	var err error = nil
@@ -247,7 +300,7 @@ func GetKeypress(w Window) (string, error) {
 }
 
 func ClearKeyQueue(w Window) {
-	keyclear_chan <- w.GetUID()
+	key_queue_clear_chan <- w.GetUID()
 }
 
 // ----------------------------------------------------------
