@@ -5,6 +5,7 @@
 		margin: 0;
 		background-color: black;
 		font-family: "Courier";
+		overflow: hidden;
 	}
 	table {
 		border-collapse: collapse;
@@ -12,16 +13,11 @@
 	}
 	td {
 		text-align: center;
-		color: white;
 		padding: 0;
 		cursor: default;
 	}
-	td:hover {
+	.hover:hover {
 		color: white !important;
-	}
-	.overlay {
-		pointer-events: none;
-		background: none !important;
 	}
 </style>
 </head>
@@ -77,7 +73,7 @@
 				html += "<tr>";
 				for (let x = 0; x < opts.width; x++) {
 					let id = id_from_xy(x, y);
-					html += `<td><div id="${id}" style="width: ${opts.boxwidth}; height: ${opts.boxheight}; overflow: hidden;"></div></td>`;
+					html += `<td><div id="${id}" class="hover" style="width: ${opts.boxwidth}; height: ${opts.boxheight}; overflow: hidden;"></div></td>`;
 				}
 				html += "</tr>";
 			}
@@ -109,7 +105,7 @@
 						ipcRenderer.send("mousedown", {x: x, y: y});		// x and y work despite closures because we use "let" in the loops
 					});
 					element.addEventListener("mouseup", (evt) => {
-						ipcRenderer.send("mouseup", {x: x, y: y});			// Works despite closures because we use "let" in the loops
+						ipcRenderer.send("mouseup", {x: x, y: y});			// As above
 					});
 				}
 			}
