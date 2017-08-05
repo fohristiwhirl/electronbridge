@@ -41,9 +41,8 @@
 		return `td_${x}_${y}`;
 	}
 
-	function log_body_size(descriptor) {
-		let body = document.querySelector("body");
-		let msg = `${descriptor}: ${body.scrollWidth} x ${body.scrollHeight}`;
+	function log_size(descriptor, w, h) {
+		let msg = `${descriptor}: ${w} x ${h}`;
 		ipcRenderer.send("log", {msg: msg});
 	}
 
@@ -69,6 +68,8 @@
 			renderer.boxwidth = opts.boxwidth;
 			renderer.boxheight = opts.boxheight;
 			renderer.uid = opts.uid;
+
+			log_size("theoretical size required", opts.width * opts.boxwidth, opts.height * opts.boxheight)
 
 			// Make the table...
 
@@ -114,10 +115,12 @@
 			requestAnimationFrame(() => renderer.flip());
 
 			// I notice on Chrome on Windows with screen zoom != 100%, there are issues with sizing of elements.
+			// e.g. a size 10 element scaled up to 125% will not be 12.5 pixels wide, but maybe 12 or 13.
+			// If you have a whole row of such elements, the discrepancy really adds up.
 			// Find out how much space we really need and resize the window to that size.
 
-			log_body_size("actual size required");
 			let body = document.querySelector("body");
+			log_size("actual body size", body.scrollWidth, body.scrollHeight)
 			renderer.resize(body.scrollWidth, body.scrollHeight);
 		};
 
@@ -238,7 +241,7 @@
 
 	// --------------------------------------------------------------
 
-	log_body_size("theoretical size required");
+	log_size("initial window size", document.querySelector("body").scrollWidth, document.querySelector("body").scrollHeight);
 	let renderer = make_renderer();
 
 	// --------------------------------------------------------------

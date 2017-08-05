@@ -8,7 +8,7 @@ const ipcMain = require("electron").ipcMain;
 const readline = require("readline");
 const windows = require("./windows");
 
-const STDERR_LOG_WINDOW_ID = -1;
+const DEV_LOG_WINDOW_ID = -1;
 const TARGET_APP = "app.exe";
 
 electron.app.on("ready", () => {
@@ -41,8 +41,8 @@ function rebuild_menu(write_to_exe) {
 					role: "toggledevtools"
 				},
 				{
-					label: "Show Client Log",
-					click: () => windows.show(STDERR_LOG_WINDOW_ID),
+					label: "Show Dev Log",
+					click: () => windows.show(DEV_LOG_WINDOW_ID),
 				},
 				{
 					type: "separator"
@@ -70,9 +70,9 @@ function main() {
 	// Create our log window..................................................
 
 	windows.new_window({
-		uid: STDERR_LOG_WINDOW_ID,
+		uid: DEV_LOG_WINDOW_ID,
 		page: "pages/log_simple.html",
-		name: "Client Log",
+		name: "Dev Log",
 		width: 600,
 		height: 400,
 		starthidden: true,
@@ -88,7 +88,7 @@ function main() {
 		}
 		msg = msg.toString();
 		windows.update({
-			uid: STDERR_LOG_WINDOW_ID,
+			uid: DEV_LOG_WINDOW_ID,
 			msg: msg + "\n",
 		});
 	}
@@ -146,7 +146,7 @@ function main() {
 
 	stderr_scanner.on("line", (line) => {
 		write_to_log(line);
-		windows.show(STDERR_LOG_WINDOW_ID);
+		windows.show(DEV_LOG_WINDOW_ID);
 	});
 
 	// Messages from the renderer..............................................
