@@ -8,6 +8,10 @@ type TextWindow struct {
 	Uid				int							`json:"uid"`
 }
 
+func (self *TextWindow) GetUID() int {
+	return self.Uid
+}
+
 type NewTextWinMsg struct {
 	Name			string						`json:"name"`
 	Page			string						`json:"page"`

@@ -9,16 +9,40 @@ import (
 	"sync"
 )
 
+type Window interface {
+	GetUID()	int
+}
+
+type keypress struct {
+	key string
+	uid int
+}
+
+type keyquery struct {
+	response_chan chan string
+	uid int
+}
+
+type mousepress struct {
+	press Point
+	uid int
+}
+
+type mousequery struct {
+	response_chan chan Point
+	uid int
+}
+
 var OUT_msg_chan = make(chan string)
 var ERR_msg_chan = make(chan string)
 
-var keypress_chan = make(chan string)
-var key_query_chan = make(chan chan string)
-var keyclear_chan = make(chan bool)
+var keypress_chan = make(chan keypress)
+var key_query_chan = make(chan keyquery)
+var keyclear_chan = make(chan int)
 
-var mousedown_chan = make(chan Point)
-var mouse_query_chan = make(chan chan Point)
-var mouseclear_chan = make(chan bool)
+var mousedown_chan = make(chan mousepress)
+var mouse_query_chan = make(chan mousequery)
+var mouseclear_chan = make(chan int)
 
 // ----------------------------------------------------------
 
@@ -156,7 +180,7 @@ func listener() {
 			}
 
 			if key_msg.Content.Down {
-				keypress_chan <- key_msg.Content.Key
+				keypress_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
 			}
 		}
 
@@ -171,7 +195,7 @@ func listener() {
 			}
 
 			if mouse_msg.Content.Down {
-				mousedown_chan <- Point{mouse_msg.Content.X, mouse_msg.Content.Y}
+				mousedown_chan <- mousepress{press: Point{mouse_msg.Content.X, mouse_msg.Content.Y}, uid: mouse_msg.Content.Uid}
 			}
 		}
 
@@ -185,29 +209,32 @@ func listener() {
 
 func keymaster() {
 
-	var keyqueue []string
+	keyqueues := make(map[int][]string)
 
 	for {
 		select {
-		case response_chan := <- key_query_chan:
-			if len(keyqueue) == 0 {
-				response_chan <- ""
+		case query := <- key_query_chan:
+			if len(keyqueues[query.uid]) == 0 {
+				query.response_chan <- ""
 			} else {
-				response_chan <- keyqueue[0]
-				keyqueue = keyqueue[1:]
+				query.response_chan <- keyqueues[query.uid][0]
+				keyqueues[query.uid] = keyqueues[query.uid][1:]
 			}
-		case keypress := <- keypress_chan:
-			keyqueue = append(keyqueue, keypress)
-		case <- keyclear_chan:
-			keyqueue = nil
+		case key_msg := <- keypress_chan:
+			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
+		case clear_uid := <- keyclear_chan:
+			keyqueues[clear_uid] = nil
 		}
 	}
 }
 
-func GetKeypress() (string, error) {
+func GetKeypress(w Window) (string, error) {
+
+	uid := w.GetUID()
 
 	response_chan := make(chan string)
-	key_query_chan <- response_chan
+
+	key_query_chan <- keyquery{response_chan: response_chan, uid: uid}
 
 	key := <- response_chan
 	var err error = nil
@@ -219,37 +246,40 @@ func GetKeypress() (string, error) {
 	return key, err
 }
 
-func ClearKeyQueue() {
-	keyclear_chan <- true
+func ClearKeyQueue(w Window) {
+	keyclear_chan <- w.GetUID()
 }
 
 // ----------------------------------------------------------
 
 func mousemaster() {
 
-	var mousequeue []Point
+	mousequeues := make(map[int][]Point)
 
 	for {
 		select {
-		case response_chan := <- mouse_query_chan:
-			if len(mousequeue) == 0 {
-				response_chan <- Point{-1, -1}					// Note this: -1, -1 is used as a flag for empty queue
+		case query := <- mouse_query_chan:
+			if len(mousequeues[query.uid]) == 0 {
+				query.response_chan <- Point{-1, -1}					// Note this: -1, -1 is used as a flag for empty queue
 			} else {
-				response_chan <- mousequeue[0]
-				mousequeue = mousequeue[1:]
+				query.response_chan <- mousequeues[query.uid][0]
+				mousequeues[query.uid] = mousequeues[query.uid][1:]
 			}
-		case mousedown := <- mousedown_chan:
-			mousequeue = append(mousequeue, mousedown)
-		case <- mouseclear_chan:
-			mousequeue = nil
+		case mouse_msg := <- mousedown_chan:
+			mousequeues[mouse_msg.uid] = append(mousequeues[mouse_msg.uid], mouse_msg.press)
+		case clear_uid := <- mouseclear_chan:
+			mousequeues[clear_uid] = nil
 		}
 	}
 }
 
-func GetMousedown() (Point, error) {
+func GetMousedown(w Window) (Point, error) {
+
+	uid := w.GetUID()
 
 	response_chan := make(chan Point)
-	mouse_query_chan <- response_chan
+
+	mouse_query_chan <- mousequery{response_chan: response_chan, uid: uid}
 
 	point := <- response_chan
 	var err error = nil
@@ -261,8 +291,8 @@ func GetMousedown() (Point, error) {
 	return point, err
 }
 
-func ClearMouseQueue() {
-	mouseclear_chan <- true
+func ClearMouseQueue(w Window) {
+	mouseclear_chan <- w.GetUID()
 }
 
 // ----------------------------------------------------------

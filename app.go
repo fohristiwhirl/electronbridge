@@ -6,16 +6,15 @@ import (
 	electron "./electronbridge_golib"
 )
 
-const (
-	WIDTH = 40
-	HEIGHT = 3
-)
-
 func main() {
-	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, false, true)
+	report_window := electron.NewTextWindow("Reports", "pages/log.html", 400, 300, false, true)
+	main_window := electron.NewGridWindow("Timer", "pages/grid.html", 40, 3, 12, 20, 100, false, true)
 	electron.AllowQuit()
 
 	i := 0
+
+	report_window.Printf("Click in the timer for mouse coordinates")
+	report_window.Printf("Press keys on the timer for key reports")
 
 	for {
 		i++
@@ -28,45 +27,16 @@ func main() {
 
 		main_window.Flip()
 
+		click, err := electron.GetMousedown(main_window)
+		if err == nil {
+			report_window.Printf("%v", click)
+		}
+
+		key, err := electron.GetKeypress(main_window)
+		if err == nil {
+			report_window.Printf("%v", key)
+		}
+
 		time.Sleep(1 * time.Millisecond)
 	}
 }
-
-/*
-
-import (
-	"math/rand"
-	"time"
-	electron "./electronbridge_golib"
-)
-
-const (
-	WIDTH = 40
-	HEIGHT = 30
-)
-
-func main() {
-	main_window := electron.NewGridWindow("World", "pages/grid.html", WIDTH, HEIGHT, 12, 20, 100, false, true)
-	text_window := electron.NewTextWindow("Text", "pages/log.html", 400, 300, false, true)
-	electron.AllowQuit()
-
-	i := 0
-
-	for {
-		i++
-
-		x := rand.Intn(WIDTH)
-		y := rand.Intn(HEIGHT)
-
-		main_window.Set(x, y, "*", "g")
-		main_window.Flip()
-
-		if i % 50 == 0 {
-			text_window.Printf("Reached i %d\n", i)
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-}
-
-*/

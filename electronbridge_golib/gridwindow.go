@@ -31,6 +31,10 @@ type GridWindow struct {
 	Mutex			sync.Mutex					`json:"-"`
 }
 
+func (self *GridWindow) GetUID() int {
+	return self.Uid
+}
+
 type NewGridWinMsg struct {
 	Name			string						`json:"name"`
 	Page			string						`json:"page"`
