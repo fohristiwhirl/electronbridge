@@ -242,4 +242,9 @@ function main() {
 		let windobject = windows.get_windobject_from_event(event);
 		windows.handle_ready(windobject, opts);
 	});
+
+	ipcMain.on("log", (event, opts) => {
+		let windobject = windows.get_windobject_from_event(event);
+		write_to_log("Log from window '" + windobject.config.name + "': " + opts.msg);
+	});
 }

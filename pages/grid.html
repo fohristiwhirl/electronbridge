@@ -5,7 +5,6 @@
 		margin: 0;
 		background-color: black;
 		font-family: "Courier";
-		overflow: hidden;
 	}
 	table {
 		border-collapse: collapse;
@@ -40,6 +39,12 @@
 
 	function id_from_xy(x, y) {
 		return `td_${x}_${y}`;
+	}
+
+	function log_body_size(descriptor) {
+		let body = document.querySelector("body");
+		let msg = `${descriptor}: ${body.scrollWidth} x ${body.scrollHeight}`;
+		ipcRenderer.send("log", {msg: msg});
 	}
 
 	// --------------------------------------------------------------
@@ -82,10 +87,6 @@
 
 			document.getElementById("maintable").innerHTML = html;
 
-			// Although the window is probably already the correct size, do this anyway...
-
-			renderer.resize(opts.width * opts.boxwidth, opts.height * opts.boxheight);
-
 			// Input handlers...
 
 			document.addEventListener("keydown", (evt) => {
@@ -111,6 +112,13 @@
 			}
 
 			requestAnimationFrame(() => renderer.flip());
+
+			// I notice on Chrome on Windows with screen zoom != 100%, there are issues with sizing of elements.
+			// Find out how much space we really need and resize the window to that size.
+
+			log_body_size("actual size required");
+			let body = document.querySelector("body");
+			renderer.resize(body.scrollWidth, body.scrollHeight);
 		};
 
 		renderer.flip = () => {
@@ -230,6 +238,7 @@
 
 	// --------------------------------------------------------------
 
+	log_body_size("theoretical size required");
 	let renderer = make_renderer();
 
 	// --------------------------------------------------------------
