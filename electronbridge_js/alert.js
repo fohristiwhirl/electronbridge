@@ -12,7 +12,7 @@ function alert_main(msg) {
         message: msg.toString(),
         title: "Alert",
         buttons: ["OK"]
-    });
+    }, () => {});               // Providing a callback makes the window not block the process
 }
 
 function alert_renderer(msg) {

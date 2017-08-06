@@ -64,6 +64,9 @@ var mouse_xy_query = make(chan chan Point)
 var quit_chan = make(chan bool)
 var quit_query_chan = make(chan chan bool)
 
+var cmd_chan = make(chan string)
+var cmd_query_chan = make(chan chan string)
+
 // ----------------------------------------------------------
 
 type id_object struct {
@@ -109,13 +112,14 @@ type IncomingMsg struct {
 
 type IncomingMsgContent struct {
 
-	// Used for both keys and mouse events. Not every field will be needed.
+	// Used for all incoming message types. Not every field will be needed.
 
 	Uid				int							`json:"uid"`
 	Key				string						`json:"key"`
 	Down			bool						`json:"down"`
 	X				int							`json:"x"`
 	Y				int							`json:"y"`
+	Cmd				string						`json:"cmd"`
 }
 
 // ----------------------------------------------------------
@@ -127,6 +131,7 @@ func init() {
 	go mousemaster()
 	go simple_mouse_location_master()
 	go quitmaster()
+	go commandmaster()
 }
 
 // ----------------------------------------------------------
@@ -165,7 +170,6 @@ func listener() {
 		}
 
 		if msg.Type == "key" {
-
 			if msg.Content.Down {
 				keydown_chan <- keypress{key: msg.Content.Key, uid: msg.Content.Uid}
 			} else {
@@ -174,14 +178,12 @@ func listener() {
 		}
 
 		if msg.Type == "mouse" {		// Note: uses the same struct as below
-
 			if msg.Content.Down {
 				mousedown_chan <- mousepress{press: Point{msg.Content.X, msg.Content.Y}, uid: msg.Content.Uid}
 			}
 		}
 
 		if msg.Type == "mouseover" {
-
 			mouse_xy_chan <- Point{msg.Content.X, msg.Content.Y}
 		}
 
@@ -191,6 +193,10 @@ func listener() {
 
 		if msg.Type == "quit" {
 			quit_chan <- true
+		}
+
+		if msg.Type == "cmd" {
+			cmd_chan <- msg.Content.Cmd
 		}
 	}
 }
@@ -375,6 +381,43 @@ func quitmaster() {
 func WeShouldQuit() bool {
 	response_chan := make(chan bool)
 	quit_query_chan <- response_chan
+	return <- response_chan
+}
+
+// ----------------------------------------------------------
+
+func commandmaster() {
+
+	var queue []string
+
+	for {
+		select {
+		case cmd := <- cmd_chan:
+			queue = append(queue, cmd)
+		case response_chan := <- cmd_query_chan:
+			if len(queue) == 0 {
+				response_chan <- ""
+			} else {
+				response_chan <- queue[0]
+				queue = queue[1:]
+			}
+		}
+	}
+}
+
+func RegisterCommand(s string) {
+
+	m := OutgoingMessage{
+		Command: "register",
+		Content: s,
+	}
+
+	sendoutgoingmessage(m)
+}
+
+func GetCommand() string {
+	response_chan := make(chan string)
+	cmd_query_chan <- response_chan
 	return <- response_chan
 }
 

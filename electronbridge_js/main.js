@@ -15,9 +15,9 @@ electron.app.on("ready", () => {
 	main();
 });
 
-function rebuild_menu(write_to_exe) {
+function rebuild_menu(write_to_exe, registered_commands) {
 
-	const template = [
+	let template = [
 		{
 			label: "App",
 			submenu: [
@@ -71,6 +71,26 @@ function rebuild_menu(write_to_exe) {
 		},
 	];
 
+	if (registered_commands.length > 0) {
+
+		template[0]["submenu"].push({
+			type: "separator"
+		});
+
+		for (let n = 0; n < registered_commands.length; n++) {
+			template[0]["submenu"].push({
+				label: registered_commands[n],
+				click: () => {
+					let output = {
+						type: "cmd",
+						content: {cmd: registered_commands[n]},
+					};
+					write_to_exe(JSON.stringify(output));
+				}
+			});
+		}
+	}
+
 	const menu = electron.Menu.buildFromTemplate(template);
 	electron.Menu.setApplicationMenu(menu);
 }
@@ -123,6 +143,8 @@ function main() {
 		terminal: false
 	});
 
+	let registered_commands = [];
+
 	scanner.on("line", (line) => {
 		let j = JSON.parse(line);
 
@@ -130,7 +152,7 @@ function main() {
 
 		if (j.command === "new") {
 			windows.new_window(j.content);
-			rebuild_menu(write_to_exe);
+			rebuild_menu(write_to_exe, registered_commands);
 		}
 
 		if (j.command === "update") {
@@ -143,6 +165,11 @@ function main() {
 
 		if (j.command === "allowquit") {
 			windows.quit_now_possible();
+		}
+
+		if (j.command === "register") {
+			registered_commands.push(j.content);
+			rebuild_menu(write_to_exe, registered_commands);
 		}
 	});
 
