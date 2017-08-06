@@ -52,6 +52,9 @@ var mousedown_chan = make(chan mousepress)
 var mouse_query_chan = make(chan mousequery)
 var mouseclear_chan = make(chan int)
 
+var quit_chan = make(chan bool)
+var quit_query_chan = make(chan chan bool)
+
 // ----------------------------------------------------------
 
 type id_object struct {
@@ -140,6 +143,7 @@ func init() {
 	go listener()
 	go keymaster()
 	go mousemaster()
+	go quitmaster()
 }
 
 // ----------------------------------------------------------
@@ -212,6 +216,10 @@ func listener() {
 		if type_obj.Type == "panic" {
 			panic("Deliberate panic induced by front end.")
 		}
+
+		if type_obj.Type == "quit" {
+			quit_chan <- true
+		}
 	}
 }
 
@@ -250,6 +258,7 @@ func keymaster() {
 		case key_msg := <- keydown_chan:
 
 			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
+
 			if keymaps[key_msg.uid] == nil {
 				keymaps[key_msg.uid] = make(map[string]bool)
 			}
@@ -265,6 +274,7 @@ func keymaster() {
 		// Queue clear...
 
 		case clear_uid := <- key_queue_clear_chan:
+
 			keyqueues[clear_uid] = nil
 		}
 	}
@@ -346,6 +356,28 @@ func GetMousedown(w Window) (Point, error) {
 
 func ClearMouseQueue(w Window) {
 	mouseclear_chan <- w.GetUID()
+}
+
+// ----------------------------------------------------------
+
+func quitmaster() {
+
+	var quit bool
+
+	for {
+		select {
+		case <- quit_chan:
+			quit = true
+		case response_chan := <- quit_query_chan:
+			response_chan <- quit
+		}
+	}
+}
+
+func WeShouldQuit() bool {
+	response_chan := make(chan bool)
+	quit_query_chan <- response_chan
+	return <- response_chan
 }
 
 // ----------------------------------------------------------

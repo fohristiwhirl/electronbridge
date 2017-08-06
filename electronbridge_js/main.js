@@ -48,10 +48,20 @@ function rebuild_menu(write_to_exe) {
 					type: "separator"
 				},
 				{
-					label: "Panic",
+					label: "Backend Panic",
 					click: () => {
 						let output = {
 							type: "panic",
+							content: null,
+						};
+						write_to_exe(JSON.stringify(output));
+					}
+				},
+				{
+					label: "Backend Quit",
+					click: () => {
+						let output = {
+							type: "quit",
 							content: null,
 						};
 						write_to_exe(JSON.stringify(output));
