@@ -9,9 +9,13 @@ import (
 	"sync"
 )
 
+// ----------------------------------------------------------
+
 type Window interface {
 	GetUID()	int
 }
+
+// ----------------------------------------------------------
 
 type keypress struct {
 	key string
@@ -38,6 +42,8 @@ type mousequery struct {
 	response_chan chan Point
 	uid int
 }
+
+// ----------------------------------------------------------
 
 var OUT_msg_chan = make(chan string)
 var ERR_msg_chan = make(chan string)
@@ -96,47 +102,20 @@ type OutgoingMessage struct {
 
 // ----------------------------------------------------------
 
-type IncomingMsgType struct {
+type IncomingMsg struct {
 	Type			string						`json:"type"`
+	Content			IncomingMsgContent			`json:"content"`
 }
 
-// ----------------------------------------------------------
+type IncomingMsgContent struct {
 
-type IncomingKeyContent struct {
-	Down			bool						`json:"down"`
+	// Used for both keys and mouse events. Not every field will be needed.
+
 	Uid				int							`json:"uid"`
 	Key				string						`json:"key"`
-}
-
-type IncomingKey struct {
-	Type			string						`json:"type"`
-	Content			IncomingKeyContent			`json:"content"`
-}
-
-// ----------------------------------------------------------
-
-type IncomingMouseContent struct {
 	Down			bool						`json:"down"`
-	Uid				int							`json:"uid"`
 	X				int							`json:"x"`
 	Y				int							`json:"y"`
-}
-
-type IncomingMouse struct {
-	Type			string						`json:"type"`
-	Content			IncomingMouseContent		`json:"content"`
-}
-
-// ----------------------------------------------------------
-
-type IncomingEffectDoneContent struct {
-	Uid				int							`json:"uid"`
-	EffectID		int							`json:"effectid"`
-}
-
-type IncomingEffectDone struct {
-	Type			string						`json:"type"`
-	Content			IncomingEffectDoneContent	`json:"content"`
 }
 
 // ----------------------------------------------------------
@@ -178,63 +157,39 @@ func listener() {
 			continue
 		}
 
-		var type_obj IncomingMsgType
+		var msg IncomingMsg
 
-		err := json.Unmarshal(scanner.Bytes(), &type_obj)
+		err := json.Unmarshal(scanner.Bytes(), &msg)
 		if err != nil {
 			continue
 		}
 
-		if type_obj.Type == "key" {
+		if msg.Type == "key" {
 
-			var key_msg IncomingKey
-
-			err := json.Unmarshal(scanner.Bytes(), &key_msg)
-
-			if err != nil {
-				continue
-			}
-
-			if key_msg.Content.Down {
-				keydown_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
+			if msg.Content.Down {
+				keydown_chan <- keypress{key: msg.Content.Key, uid: msg.Content.Uid}
 			} else {
-				keyup_chan <- keypress{key: key_msg.Content.Key, uid: key_msg.Content.Uid}
+				keyup_chan <- keypress{key: msg.Content.Key, uid: msg.Content.Uid}
 			}
 		}
 
-		if type_obj.Type == "mouse" {		// Note: uses the same struct as below
+		if msg.Type == "mouse" {		// Note: uses the same struct as below
 
-			var mouse_msg IncomingMouse
-
-			err := json.Unmarshal(scanner.Bytes(), &mouse_msg)
-
-			if err != nil {
-				continue
-			}
-
-			if mouse_msg.Content.Down {
-				mousedown_chan <- mousepress{press: Point{mouse_msg.Content.X, mouse_msg.Content.Y}, uid: mouse_msg.Content.Uid}
+			if msg.Content.Down {
+				mousedown_chan <- mousepress{press: Point{msg.Content.X, msg.Content.Y}, uid: msg.Content.Uid}
 			}
 		}
 
-		if type_obj.Type == "mouseover" {
+		if msg.Type == "mouseover" {
 
-			var mouse_msg IncomingMouse		// Note: uses the same struct as above
-
-			err := json.Unmarshal(scanner.Bytes(), &mouse_msg)
-
-			if err != nil {
-				continue
-			}
-
-			mouse_xy_chan <- Point{mouse_msg.Content.X, mouse_msg.Content.Y}
+			mouse_xy_chan <- Point{msg.Content.X, msg.Content.Y}
 		}
 
-		if type_obj.Type == "panic" {
+		if msg.Type == "panic" {
 			panic("Deliberate panic induced by front end.")
 		}
 
-		if type_obj.Type == "quit" {
+		if msg.Type == "quit" {
 			quit_chan <- true
 		}
 	}
