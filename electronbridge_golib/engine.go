@@ -52,6 +52,9 @@ var mousedown_chan = make(chan mousepress)
 var mouse_query_chan = make(chan mousequery)
 var mouseclear_chan = make(chan int)
 
+var mouse_xy_chan = make(chan Point)
+var mouse_xy_query = make(chan chan Point)
+
 var quit_chan = make(chan bool)
 var quit_query_chan = make(chan chan bool)
 
@@ -143,6 +146,7 @@ func init() {
 	go listener()
 	go keymaster()
 	go mousemaster()
+	go simple_mouse_location_master()
 	go quitmaster()
 }
 
@@ -198,7 +202,7 @@ func listener() {
 			}
 		}
 
-		if type_obj.Type == "mouse" {
+		if type_obj.Type == "mouse" {		// Note: uses the same struct as below
 
 			var mouse_msg IncomingMouse
 
@@ -211,6 +215,19 @@ func listener() {
 			if mouse_msg.Content.Down {
 				mousedown_chan <- mousepress{press: Point{mouse_msg.Content.X, mouse_msg.Content.Y}, uid: mouse_msg.Content.Uid}
 			}
+		}
+
+		if type_obj.Type == "mouseover" {
+
+			var mouse_msg IncomingMouse		// Note: uses the same struct as above
+
+			err := json.Unmarshal(scanner.Bytes(), &mouse_msg)
+
+			if err != nil {
+				continue
+			}
+
+			mouse_xy_chan <- Point{mouse_msg.Content.X, mouse_msg.Content.Y}
 		}
 
 		if type_obj.Type == "panic" {
@@ -231,7 +248,13 @@ func keymaster() {
 	// of keystrokes and an ability to see what keys are down NOW.
 
 	keyqueues := make(map[int][]string)
-	keymaps := make(map[int]map[string]bool)
+	keymaps := make(map[int]map[string]bool)		// Lowercase only
+
+	make_keymap_if_needed := func (uid int) {
+		if keymaps[uid] == nil {
+			keymaps[uid] = make(map[string]bool)
+		}
+	}
 
 	for {
 		select {
@@ -240,7 +263,7 @@ func keymaster() {
 
 		case query := <- key_map_query_chan:
 
-			query.response_chan <- keymaps[query.uid][query.key]
+			query.response_chan <- keymaps[query.uid][strings.ToLower(query.key)]	// if keymaps[query.uid] is nil, this is false
 
 		// Query of the queue...
 
@@ -259,17 +282,13 @@ func keymaster() {
 
 			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
 
-			if keymaps[key_msg.uid] == nil {
-				keymaps[key_msg.uid] = make(map[string]bool)
-			}
-			keymaps[key_msg.uid][key_msg.key] = true
+			make_keymap_if_needed(key_msg.uid)
+			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = true
 
 		case key_msg := <- keyup_chan:
 
-			if keymaps[key_msg.uid] == nil {
-				keymaps[key_msg.uid] = make(map[string]bool)
-			}
-			keymaps[key_msg.uid][key_msg.key] = false
+			make_keymap_if_needed(key_msg.uid)
+			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = false
 
 		// Queue clear...
 
@@ -356,6 +375,30 @@ func GetMousedown(w Window) (Point, error) {
 
 func ClearMouseQueue(w Window) {
 	mouseclear_chan <- w.GetUID()
+}
+
+// ----------------------------------------------------------
+
+func simple_mouse_location_master() {
+
+	// Has no concept of multiple windows.
+
+	var point Point
+
+	for {
+		select {
+		case point = <- mouse_xy_chan:
+			// no other action
+		case response_chan := <- mouse_xy_query:
+			response_chan <- point
+		}
+	}
+}
+
+func MouseXY() Point {
+	response_chan := make(chan Point)
+	mouse_xy_query <- response_chan
+	return <- response_chan
 }
 
 // ----------------------------------------------------------

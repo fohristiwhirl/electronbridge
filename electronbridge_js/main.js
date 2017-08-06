@@ -243,6 +243,26 @@ function main() {
 		write_to_exe(JSON.stringify(output));
 	});
 
+	ipcMain.on("mouseover", (event, msg) => {
+
+		let windobject = windows.get_windobject_from_event(event);
+
+		if (windobject === undefined) {
+			return;
+		}
+
+		let output = {
+			type: "mouseover",
+			content: {
+				uid: windobject.uid,
+				x: msg.x,
+				y: msg.y
+			}
+		};
+
+		write_to_exe(JSON.stringify(output));
+	});
+
 	ipcMain.on("request_resize", (event, opts) => {
 		let windobject = windows.get_windobject_from_event(event);
 		windows.resize(windobject, opts);

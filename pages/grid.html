@@ -109,6 +109,9 @@
 					element.addEventListener("mouseup", (evt) => {
 						ipcRenderer.send("mouseup", {x: x, y: y});			// As above
 					});
+					element.addEventListener("mouseover", (evt) => {
+						ipcRenderer.send("mouseover", {x: x, y: y});		// As above
+					});
 				}
 			}
 
