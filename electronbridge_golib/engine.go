@@ -58,8 +58,8 @@ var mousedown_chan = make(chan mousepress)
 var mouse_query_chan = make(chan mousequery)
 var mouseclear_chan = make(chan int)
 
-var mouse_xy_chan = make(chan Point)
-var mouse_xy_query = make(chan chan Point)
+var mouse_xy_chan = make(chan MouseLocation)
+var mouse_xy_query = make(chan chan MouseLocation)
 
 var quit_chan = make(chan bool)
 var quit_query_chan = make(chan chan bool)
@@ -89,6 +89,12 @@ var effect_id_maker		id_object
 type Point struct {
 	X				int							`json:"x"`
 	Y				int							`json:"y"`
+}
+
+type MouseLocation struct {
+	X				int							`json:"x"`
+	Y				int							`json:"y"`
+	Uid				int							`json:"uid"`
 }
 
 type Spot struct {
@@ -128,8 +134,8 @@ func init() {
 	go printer()
 	go listener()
 	go keymaster()
-	go mousemaster()
-	go simple_mouse_location_master()
+	go mouse_click_master()
+	go mouse_location_master()
 	go quitmaster()
 	go commandmaster()
 }
@@ -184,7 +190,7 @@ func listener() {
 		}
 
 		if msg.Type == "mouseover" {
-			mouse_xy_chan <- Point{msg.Content.X, msg.Content.Y}
+			mouse_xy_chan <- MouseLocation{Uid: msg.Content.Uid, X: msg.Content.X, Y: msg.Content.Y}
 		}
 
 		if msg.Type == "panic" {
@@ -295,7 +301,7 @@ func ClearKeyQueue(w Window) {
 
 // ----------------------------------------------------------
 
-func mousemaster() {
+func mouse_click_master() {
 
 	mousequeues := make(map[int][]Point)
 
@@ -340,24 +346,22 @@ func ClearMouseQueue(w Window) {
 
 // ----------------------------------------------------------
 
-func simple_mouse_location_master() {
+func mouse_location_master() {
 
-	// Has no concept of multiple windows.
-
-	var point Point
+	var loc MouseLocation
 
 	for {
 		select {
-		case point = <- mouse_xy_chan:
+		case loc = <- mouse_xy_chan:
 			// no other action
 		case response_chan := <- mouse_xy_query:
-			response_chan <- point
+			response_chan <- loc
 		}
 	}
 }
 
-func MouseXY() Point {
-	response_chan := make(chan Point)
+func MouseXY() MouseLocation {
+	response_chan := make(chan MouseLocation)
 	mouse_xy_query <- response_chan
 	return <- response_chan
 }
@@ -405,20 +409,55 @@ func commandmaster() {
 	}
 }
 
-func RegisterCommand(s string) {
+func RegisterCommand(s string, accel string) {
+
+	type item struct {
+		Label			string		`json:"label"`
+		Accelerator		string		`json:"accelerator"`
+	}
 
 	m := OutgoingMessage{
 		Command: "register",
-		Content: s,
+		Content: item{s, accel},
 	}
 
 	sendoutgoingmessage(m)
 }
 
-func GetCommand() string {
+func RegisterSeparator() {
+
+	m := OutgoingMessage{
+		Command: "separator",
+		Content: nil,
+	}
+
+	sendoutgoingmessage(m)
+}
+
+func GetCommand() (string, error) {
 	response_chan := make(chan string)
 	cmd_query_chan <- response_chan
-	return <- response_chan
+
+	cmd := <- response_chan
+	var err error = nil
+
+	if cmd == "" {
+		err = fmt.Errorf("GetCommand(): nothing on queue")
+	}
+
+	return cmd, err
+}
+
+// ----------------------------------------------------------
+
+func BuildMenu() {
+
+	m := OutgoingMessage{
+		Command: "buildmenu",
+		Content: nil,
+	}
+
+	sendoutgoingmessage(m)
 }
 
 // ----------------------------------------------------------

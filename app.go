@@ -8,13 +8,14 @@ import (
 
 func main() {
 	report_window := electron.NewTextWindow("Reports", "pages/log.html", 400, 300, false, true)
-	main_window := electron.NewGridWindow("Timer", "pages/grid.html", 40, 3, 12, 20, 100, false, true)
+	main_window := electron.NewGridWindow("Timer", "pages/grid.html", 40, 3, 12, 20, 100, false, false)
+
+	electron.RegisterCommand("Menu Item 1", "")
+	electron.RegisterCommand("Menu Item 2", "")
+	electron.BuildMenu()
 	electron.AllowQuit()
 
 	i := 0
-
-	report_window.Printf("Click in the timer for mouse coordinates")
-	report_window.Printf("Press keys on the timer for key reports")
 
 	for {
 		i++
@@ -27,14 +28,28 @@ func main() {
 
 		main_window.Flip()
 
-		click, err := electron.GetMousedown(main_window)
-		if err == nil {
+		for {
+			click, err := electron.GetMousedown(main_window)
+			if err != nil {
+				break
+			}
 			report_window.Printf("%v", click)
 		}
 
-		key, err := electron.GetKeypress(main_window)
-		if err == nil {
+		for {
+			key, err := electron.GetKeypress(main_window)
+			if err != nil {
+				break
+			}
 			report_window.Printf("%v", key)
+		}
+
+		for {
+			command, err := electron.GetCommand()
+			if err != nil {
+				break
+			}
+			report_window.Printf("%v", command)
 		}
 
 		time.Sleep(1 * time.Millisecond)

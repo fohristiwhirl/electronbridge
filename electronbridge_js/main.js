@@ -72,23 +72,11 @@ function rebuild_menu(write_to_exe, registered_commands) {
 	];
 
 	if (registered_commands.length > 0) {
+		template[0]["submenu"].push({type: "separator"});
+	}
 
-		template[0]["submenu"].push({
-			type: "separator"
-		});
-
-		for (let n = 0; n < registered_commands.length; n++) {
-			template[0]["submenu"].push({
-				label: registered_commands[n],
-				click: () => {
-					let output = {
-						type: "cmd",
-						content: {cmd: registered_commands[n]},
-					};
-					write_to_exe(JSON.stringify(output));
-				}
-			});
-		}
+	for (let n = 0; n < registered_commands.length; n++) {
+		template[0]["submenu"].push(registered_commands[n])
 	}
 
 	const menu = electron.Menu.buildFromTemplate(template);
@@ -109,6 +97,8 @@ function main() {
 		resizable: true,
 	});
 
+	let have_warned_socket = false;
+
 	function write_to_log(msg) {
 		if (msg instanceof Error) {
 			msg = msg.toString();
@@ -117,6 +107,14 @@ function main() {
 			msg = JSON.stringify(msg, null, "  ");
 		}
 		msg = msg.toString();
+
+		if (msg.indexOf("Error: This socket has been ended by the other party") !== -1) {
+			if (have_warned_socket) {
+				return;
+			}
+			have_warned_socket = true;
+		}
+
 		windows.update({
 			uid: DEV_LOG_WINDOW_ID,
 			msg: msg + "\n",
@@ -152,7 +150,6 @@ function main() {
 
 		if (j.command === "new") {
 			windows.new_window(j.content);
-			rebuild_menu(write_to_exe, registered_commands);
 		}
 
 		if (j.command === "update") {
@@ -168,7 +165,27 @@ function main() {
 		}
 
 		if (j.command === "register") {
-			registered_commands.push(j.content);
+
+			let item = {
+				label: j.content.label,
+				accelerator: j.content.accelerator === "" ? undefined : j.content.accelerator,
+				click: () => {
+					let output = {
+						type: "cmd",
+						content: {cmd: j.content.label},
+					};
+					write_to_exe(JSON.stringify(output));
+				}
+			};
+
+			registered_commands.push(item);
+		}
+
+		if (j.command === "separator") {
+			registered_commands.push({type: "separator"});
+		}
+
+		if (j.command === "buildmenu") {
 			rebuild_menu(write_to_exe, registered_commands);
 		}
 	});
