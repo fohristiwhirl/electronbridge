@@ -20,7 +20,7 @@ function alert_renderer(msg) {
         message: msg.toString(),
         title: "Alert",
         buttons: ["OK"]
-    });
+    }, () => {});
 }
 
 module.exports = (msg) => {
