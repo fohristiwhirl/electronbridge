@@ -146,7 +146,9 @@ function main() {
 	scanner.on("line", (line) => {
 		let j = JSON.parse(line);
 
-		// write_to_log(line)
+		// if (j.command !== "update") {
+		// 	write_to_log(line)
+		// }
 
 		if (j.command === "new") {
 			windows.new_window(j.content);

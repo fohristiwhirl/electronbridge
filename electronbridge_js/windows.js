@@ -135,7 +135,11 @@ function hide(uid) {
 	if (windobject === undefined) {
 		return;
 	}
-	windobject.win.hide();
+	try {
+		windobject.win.hide();
+	} catch (e) {
+		// Can fail at end of app life when the window has been destroyed.
+	}
 }
 
 function show(uid) {
@@ -143,7 +147,11 @@ function show(uid) {
 	if (windobject === undefined) {
 		return;
 	}
-	windobject.win.show();
+	try {
+		windobject.win.show();
+	} catch (e) {
+		// Can fail at end of app life when the window has been destroyed.
+	}
 }
 
 function show_all_except(uid_array) {
