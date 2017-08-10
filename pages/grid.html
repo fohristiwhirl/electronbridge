@@ -33,9 +33,28 @@
 
 	// --------------------------------------------------------------
 
-	const colour_dict = JSON.parse(fs.readFileSync("colours.json"));
+	const colour_dict = parse_commented_json("colours.json");
 
 	// --------------------------------------------------------------
+
+	function parse_commented_json(filename) {
+
+		// Comments in the colours.json file can be useful.
+		// Remove them for parsing...
+
+		let raw_json_lines = fs.readFileSync(filename).toString().split("\n");
+
+		for (let n = 0; n < raw_json_lines.length; n++) {
+			let i = raw_json_lines[n].indexOf("//");
+			if (i >= 0) {
+				raw_json_lines[n] = raw_json_lines[n].slice(0, i);
+			}
+		}
+
+		let restored = raw_json_lines.join("\n")
+
+		return JSON.parse(restored)
+	}
 
 	function id_from_xy(x, y) {
 		return `td_${x}_${y}`;

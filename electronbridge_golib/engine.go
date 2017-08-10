@@ -45,8 +45,8 @@ type mousequery struct {
 
 // ----------------------------------------------------------
 
-var OUT_msg_chan = make(chan string)
-var ERR_msg_chan = make(chan string)
+var OUT_msg_chan = make(chan []byte)
+var ERR_msg_chan = make(chan []byte)
 
 var keydown_chan = make(chan keypress)
 var keyup_chan = make(chan keypress)
@@ -146,9 +146,9 @@ func printer() {
 	for {
 		select {
 		case s := <- OUT_msg_chan:
-			fmt.Printf(s)
+			os.Stdout.Write(s)
 		case s := <- ERR_msg_chan:
-			fmt.Fprintf(os.Stderr, s)
+			os.Stderr.Write(s)
 		}
 	}
 }
@@ -464,12 +464,13 @@ func BuildMenu() {
 
 func sendoutgoingmessage(m OutgoingMessage) {
 
-	s, err := json.Marshal(m)
+	b, err := json.Marshal(m)
 	if err != nil {
 		panic("Failed to Marshal")
 	}
 
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	b = append(b, '\n')
+	OUT_msg_chan <- b
 }
 
 // ----------------------------------------------------------
@@ -483,11 +484,7 @@ func Alertf(format_string string, args ...interface{}) {
 		Content: msg,
 	}
 
-	s, err := json.Marshal(m)
-	if err != nil {
-		panic("Failed to Marshal")
-	}
-	OUT_msg_chan <- fmt.Sprintf("%s\n", string(s))
+	sendoutgoingmessage(m)
 }
 
 func Logf(format_string string, args ...interface{}) {
@@ -505,7 +502,7 @@ func Logf(format_string string, args ...interface{}) {
 		msg += "\n"
 	}
 
-	ERR_msg_chan <- fmt.Sprintf(msg)
+	ERR_msg_chan <- []byte(msg)
 }
 
 func AllowQuit() {

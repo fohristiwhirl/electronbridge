@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -29,6 +30,7 @@ type GridWindow struct {
 	Highlight		Point						`json:"highlight"`
 
 	Mutex			sync.Mutex					`json:"-"`
+	LastSend		time.Time					`json:"-"`
 }
 
 func (self *GridWindow) GetUID() int {
@@ -170,6 +172,14 @@ func (w *GridWindow) ClearFlashes() {
 }
 
 func (w *GridWindow) Flip() {
+
+	now := time.Now()
+
+	if now.Sub(w.LastSend) < 9 * time.Millisecond {
+		return
+	}
+
+	w.LastSend = now
 
 	w.Mutex.Lock()
 
