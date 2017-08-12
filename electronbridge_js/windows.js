@@ -3,6 +3,7 @@
 const alert = require("./alert");
 const assert = require("assert");
 const electron = require("electron");
+const fs = require("fs");
 const url = require("url");
 
 // The windobject is our fundamental object, containing fields:
@@ -12,23 +13,23 @@ let windobjects = Object.create(null);		// dict: uid --> windobject
 
 let quit_possible = false;					// call quit_now_possible() to set this true and allow the module to quit the app
 
-function get_windobject_from_event(event) {
+exports.get_windobject_from_event = (event) => {
 	for (let uid in windobjects) {
-		let val = windobjects[uid];
-		if (val.win.webContents === event.sender) {
-			return val;
+		let windobject = windobjects[uid];
+		if (windobject.win.webContents === event.sender) {
+			return windobject;
 		}
 	}
 	return undefined;
-}
+};
 
-function resize(windobject, opts) {
+exports.resize = (windobject, opts) => {
 	if (windobject) {
 		windobject.win.setContentSize(opts.xpixels, opts.ypixels);
 	}
-}
+};
 
-function new_window(config) {
+exports.new_window = (config) => {
 
 	assert(config.uid !== undefined);
 	assert(windobjects[config.uid] === undefined);
@@ -88,29 +89,14 @@ function new_window(config) {
 			win.webContents.send(channel, msg);
 		}
 	};
-}
+};
 
-function update(content) {
+exports.relay = (channel, content) => {
 	let windobject = windobjects[content.uid];
-	send_or_queue(windobject, "update", content);
-}
+	send_or_queue(windobject, channel, content);
+};
 
-function send_or_queue(windobject, channel, msg) {
-	if (windobject === undefined) {
-		return;
-	}
-	if (windobject.ready !== true) {
-		windobject.queue.push(() => windobject.send(channel, msg));
-		return;
-	}
-	try {
-		windobject.send(channel, msg);
-	} catch (e) {
-		// Can fail at end of app life when the window has been destroyed.
-	}
-}
-
-function handle_ready(windobject, opts) {
+exports.handle_ready = (windobject, opts) => {
 
 	if (windobject === undefined) {
 		return;
@@ -128,9 +114,9 @@ function handle_ready(windobject, opts) {
 	}
 
 	windobject.queue = [];
-}
+};
 
-function hide(uid) {
+exports.hide = (uid) => {
 	let windobject = windobjects[uid];
 	if (windobject === undefined) {
 		return;
@@ -140,9 +126,9 @@ function hide(uid) {
 	} catch (e) {
 		// Can fail at end of app life when the window has been destroyed.
 	}
-}
+};
 
-function show(uid) {
+exports.show = (uid) => {
 	let windobject = windobjects[uid];
 	if (windobject === undefined) {
 		return;
@@ -152,24 +138,78 @@ function show(uid) {
 	} catch (e) {
 		// Can fail at end of app life when the window has been destroyed.
 	}
-}
+};
 
-function show_all_except(uid_array) {
-
-	let keys = Object.keys(windobjects);
-	let exceptions = Object.create(null);
-
-	for (let n = 0; n < uid_array.length; n++) {
-		exceptions[uid_array[n]] = true;
+exports.screenshot = (uid) => {
+	let windobject = windobjects[uid];
+	if (windobject === undefined) {
+		return;
 	}
 
-	for (let n = 0; n < keys.length; n++) {
-		let key = keys[n];
-		let windobject = windobjects[key];
-
-		if (exceptions[windobject.uid] !== true) {
-			windobject.win.show();
+	let c = windobject.win.webContents
+	c.capturePage((image) => {
+		if (fs.existsSync("screenshots") == false) {
+    		fs.mkdirSync("screenshots");
 		}
+		let buffer = image.toPNG();
+		fs.writeFile(`screenshots/screenshot_${Date.now()}.png`, buffer);
+	});
+};
+
+exports.quit_now_possible = () => {
+	quit_possible = true;
+};
+
+exports.make_window_menu_items = () => {
+
+	let items = [];
+	let uids = positive_uids();
+
+	for (let uid of uids) {
+
+		let win_name = windobjects[uid].config.name;
+
+		items.push({
+			label: win_name,
+			click: () => exports.show(uid),
+		});
+	}
+
+	return items;
+};
+
+exports.make_screenshot_menu_items = () => {
+
+	let items = [];
+	let uids = positive_uids();
+
+	for (let uid of uids) {
+
+		let win_name = windobjects[uid].config.name;
+
+		items.push({
+			label: "Screenshot: " + win_name,
+			click: () => exports.screenshot(uid),
+		});
+	}
+
+	return items;
+};
+
+// --------------------------------------------------------------------------
+
+function send_or_queue(windobject, channel, msg) {
+	if (windobject === undefined) {
+		return;
+	}
+	if (windobject.ready !== true) {
+		windobject.queue.push(() => windobject.send(channel, msg));
+		return;
+	}
+	try {
+		windobject.send(channel, msg);
+	} catch (e) {
+		// Can fail at end of app life when the window has been destroyed.
 	}
 }
 
@@ -196,48 +236,24 @@ function quit_if_all_windows_are_hidden() {
 		}
 	}
 
-	electron.app.exit();		// Why doesn't quit work?
+	electron.app.exit();						// Why doesn't quit work?
 }
 
-function quit_now_possible() {
-	quit_possible = true;
-}
+function all_uids(positive_only) {
 
-function make_submenu() {
+	let all_uids = [];
 
-	let ret = {
-		label: "Windows",
-		submenu: [],
-	};
-
-	let keys = Object.keys(windobjects);
-
-	for (let n = 0; n < keys.length; n++) {
-
-		let key = keys[n];
-
-		if (key < 0) {
-			continue;
+	for (let uid in windobjects) {
+		if (!positive_only || uid > 0) {
+			all_uids.push(parseInt(uid));		// Stupid JS will have converted the uid key to a string.
 		}
-
-		let win_name = windobjects[key].config.name;
-
-		ret.submenu.push({
-			label: win_name,
-			click: () => show(key)
-		});
 	}
 
-	return ret;
+	all_uids.sort((a, b) => {return a - b})
+
+	return all_uids;
 }
 
-exports.get_windobject_from_event = get_windobject_from_event;
-exports.resize = resize;
-exports.new_window = new_window;
-exports.update = update;
-exports.handle_ready = handle_ready;
-exports.hide = hide;
-exports.show = show;
-exports.show_all_except = show_all_except;
-exports.quit_now_possible = quit_now_possible;
-exports.make_submenu = make_submenu;
+function positive_uids() {
+	return all_uids(true);
+}

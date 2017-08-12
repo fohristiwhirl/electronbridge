@@ -26,26 +26,29 @@ function rebuild_menu(write_to_exe, registered_commands) {
 					click: () => alert("Electron Bridge: window manager for Golang via Electron"),
 				},
 				{
-					type: "separator"
+					type: "separator",
 				},
 				{
-					role: "quit"
+					role: "quit",
 				},
 			]
 		},
-		windows.make_submenu(),
+		{
+			label: "Windows",
+			submenu: windows.make_window_menu_items(),
+		},
 		{
 			label: "Dev",
 			submenu: [
 				{
-					role: "toggledevtools"
+					role: "toggledevtools",
 				},
 				{
 					label: "Show Dev Log",
 					click: () => windows.show(DEV_LOG_WINDOW_ID),
 				},
 				{
-					type: "separator"
+					type: "separator",
 				},
 				{
 					label: "Backend Panic",
@@ -67,9 +70,21 @@ function rebuild_menu(write_to_exe, registered_commands) {
 						write_to_exe(JSON.stringify(output));
 					}
 				},
+				{
+					type: "separator",
+				},
 			]
 		},
 	];
+
+	let screenshot_items = windows.make_screenshot_menu_items();
+
+	for (let n = 0; n < screenshot_items.length; n++) {
+		let item = screenshot_items[n];
+		let a = n + 1;
+		item.accelerator = a.toString();
+		template[2]["submenu"].push(item);
+	}
 
 	if (registered_commands.length > 0) {
 		template[0]["submenu"].push({type: "separator"});
@@ -91,20 +106,23 @@ function main() {
 		uid: DEV_LOG_WINDOW_ID,
 		page: "pages/log_simple.html",
 		name: "Dev Log",
-		width: 600,
-		height: 400,
+		width: 800,
+		height: 600,
 		starthidden: true,
 		resizable: true,
 	});
 
 	let have_warned_socket = false;
 
-	function write_to_log(msg) {
+	function write_to_log(sender, msg) {
 		if (msg instanceof Error) {
 			msg = msg.toString();
 		}
 		if (typeof(msg) === "object") {
 			msg = JSON.stringify(msg, null, "  ");
+		}
+		if (typeof(msg) === "undefined") {
+			msg = "undefined";
 		}
 		msg = msg.toString();
 
@@ -115,9 +133,9 @@ function main() {
 			have_warned_socket = true;
 		}
 
-		windows.update({
+		windows.relay("update", {
 			uid: DEV_LOG_WINDOW_ID,
-			msg: msg + "\n",
+			msg: sender + ":  " + msg + "\n",
 		});
 	}
 
@@ -125,13 +143,13 @@ function main() {
 
 	let exe = child_process.spawn(TARGET_APP);
 
-	write_to_log("Connected to " + TARGET_APP);
+	write_to_log("main.js", "Connected to " + TARGET_APP);
 
 	function write_to_exe(msg) {
 		try {
 			exe.stdin.write(msg + "\n");
 		} catch (e) {
-			write_to_log(e);
+			write_to_log("main.js", e);
 		}
 	}
 
@@ -146,16 +164,12 @@ function main() {
 	scanner.on("line", (line) => {
 		let j = JSON.parse(line);
 
-		// if (j.command !== "update") {
-		// 	write_to_log(line)
-		// }
-
 		if (j.command === "new") {
 			windows.new_window(j.content);
 		}
 
-		if (j.command === "update") {
-			windows.update(j.content);
+		if (j.command === "update" || j.command === "effect") {
+			windows.relay(j.command, j.content);
 		}
 
 		if (j.command === "alert") {
@@ -201,7 +215,7 @@ function main() {
 	});
 
 	stderr_scanner.on("line", (line) => {
-		write_to_log(line);
+		write_to_log(TARGET_APP, line);
 		windows.show(DEV_LOG_WINDOW_ID);
 	});
 
@@ -321,6 +335,17 @@ function main() {
 
 	ipcMain.on("log", (event, opts) => {
 		let windobject = windows.get_windobject_from_event(event);
-		write_to_log("Log from window '" + windobject.config.name + "': " + opts.msg);
+		write_to_log(windobject.config.name, opts.msg);
+	});
+
+	ipcMain.on("screenshot", (event, opts) => {
+		let windobject = windows.get_windobject_from_event(event);
+		windows.screenshot(windobject.uid);
+	});
+
+	ipcMain.on("error", (event, opts) => {
+		let windobject = windows.get_windobject_from_event(event);
+		write_to_log(windobject.config.name + " (ERROR)", opts.msg);
+		windows.show(DEV_LOG_WINDOW_ID);
 	});
 }
