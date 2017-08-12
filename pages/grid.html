@@ -5,6 +5,7 @@
 		margin: 0;
 		background-color: black;
 		font-family: "Courier";
+		overflow: "hidden";
 	}
 	table {
 		border-collapse: collapse;
@@ -18,18 +19,32 @@
 	.hover:hover {
 		color: white !important;
 	}
+	.overlay {
+		pointer-events: none;
+		background: none !important;
+	}
 </style>
 </head>
 <body>
 
 <div id="maintable" style="position: absolute;"></div>
+<canvas id="canvas" width="0" height="0" class="overlay" style="position: absolute;"></canvas>
 
 <script>
 	"use strict";
 
+	window.onerror = (errorMsg, url, lineNo, columnNo, error) => {
+		ipcRenderer.send("error", {msg: `\n    ${url} (${lineNo}):\n    ${errorMsg}`})
+	}
+
 	const alert = require("../electronbridge_js/alert");
 	const fs = require("fs");
 	const ipcRenderer = require("electron").ipcRenderer;
+
+	const canvas = document.getElementById("canvas");
+	const virtue = canvas.getContext("2d");
+
+	const animations = require("./animations");
 
 	// --------------------------------------------------------------
 
@@ -60,9 +75,8 @@
 		return `td_${x}_${y}`;
 	}
 
-	function log_size(descriptor, w, h) {
-		let msg = `${descriptor}: ${w} x ${h}`;
-		ipcRenderer.send("log", {msg: msg});
+	function log(m) {
+		ipcRenderer.send("log", {msg: m});
 	}
 
 	// --------------------------------------------------------------
@@ -75,9 +89,16 @@
 			inited: false,
 			highlight_x: -1,
 			highlight_y: -1,
+			camerax: 0,
+			cameray: 0,
+			animators: [],
+			callbacks_asap: [],
+			callbacks_on_update: [],
 		};
 
 		renderer.init = (opts) => {
+
+			log("init message received:\n" + JSON.stringify(opts, null, "  "));
 
 			renderer.inited = true;
 
@@ -87,7 +108,8 @@
 			renderer.boxheight = opts.boxheight;
 			renderer.uid = opts.uid;
 
-			log_size("theoretical size required", opts.width * opts.boxwidth, opts.height * opts.boxheight)
+			log(`initial window size: ${document.querySelector("body").scrollWidth} x ${document.querySelector("body").scrollHeight}`)
+			log(`theoretical size required: ${opts.width * opts.boxwidth} x ${opts.height * opts.boxheight}`)
 
 			// Make the table...
 
@@ -141,7 +163,7 @@
 			// Find out how much space we really need and resize the window to that size.
 
 			let body = document.querySelector("body");
-			log_size("actual body size", body.scrollWidth, body.scrollHeight)
+			log(`actual body size: ${body.scrollWidth} x ${body.scrollHeight}`)
 			renderer.resize(body.scrollWidth, body.scrollHeight);
 		};
 
@@ -151,11 +173,50 @@
 
 			requestAnimationFrame(() => renderer.flip());
 
+			renderer.cache_true_sizes();
+
 			let opts = renderer.pending_flip_opts;
+			renderer.pending_flip_opts = null;
+
+			if (opts) {
+				renderer.camerax = opts.camerax;
+				renderer.cameray = opts.cameray;
+			}
+
+			let already_cleared = false;
+
+			for (let n = 0; n < renderer.animators.length; n++) {
+				if (renderer.animators[n].finished) {
+					renderer.animators.splice(n, 1);
+					n--;
+				} else {
+					if (already_cleared === false) {
+						virtue.clearRect(0, 0, canvas.width, canvas.height);
+						already_cleared = true;
+					}
+					renderer.animators[n].step();
+				}
+			}
+
+			// Some callbacks want to be run on the next draw, i.e. now:
+
+			for (let n = 0; n < renderer.callbacks_asap.length; n++) {
+				renderer.callbacks_asap[n]();
+			}
+			renderer.callbacks_asap = [];
+
+			// First return point:
+
 			if (!opts) {
 				return;
 			}
-			renderer.pending_flip_opts = null;
+
+			// Some callbacks want to be run only on an actual update:
+
+			for (let n = 0; n < renderer.callbacks_on_update.length; n++) {
+				renderer.callbacks_on_update[n]();
+			}
+			renderer.callbacks_on_update = [];
 
 			// There's some nonsense in JS where astral characters are split in 2.
 			// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
@@ -220,6 +281,8 @@
 					}
 				}
 			}
+
+			return;
 		};
 
 		renderer.resize = (xpixels, ypixels) => {
@@ -228,14 +291,42 @@
 				ypixels: ypixels,
 			};
 			ipcRenderer.send("request_resize", msg);
+			canvas.width = xpixels;
+			canvas.height = ypixels;
 		};
+
+		renderer.cache_true_sizes = () => {
+			let top_left_element = document.getElementById(id_from_xy(0, 0));
+			let top_left_bound = top_left_element.getBoundingClientRect();
+			let top_left_x = top_left_bound.left;
+			let top_left_y = top_left_bound.top;
+
+			let bottom_right_element = document.getElementById(id_from_xy(renderer.width - 1, renderer.height - 1));
+			let bottom_right_bound = bottom_right_element.getBoundingClientRect();
+			let bottom_right_x = bottom_right_bound.right;
+			let bottom_right_y = bottom_right_bound.bottom;
+
+			renderer.true_boxwidth = (bottom_right_x - top_left_x) / renderer.width;
+			renderer.true_boxheight = (bottom_right_y - top_left_y) / renderer.height;
+		};
+
+		renderer.pixel_xy_from_grid = (x, y) => {
+
+			// Takes the camera position into account.
+
+			let i = (x - renderer.camerax) * renderer.true_boxwidth + renderer.true_boxwidth / 2;
+			let j = (y - renderer.cameray) * renderer.true_boxheight + renderer.true_boxheight / 2;
+
+			return [i, j];
+		};
+
+		renderer.log = log;
 
 		return renderer;
 	}
 
 	// --------------------------------------------------------------
 
-	log_size("initial window size", document.querySelector("body").scrollWidth, document.querySelector("body").scrollHeight);
 	let renderer = make_renderer();
 
 	// --------------------------------------------------------------
@@ -248,10 +339,15 @@
 		if (!renderer.inited) {
 			return;
 		}
-		if (renderer.pending_flip_opts != null) {
+		if (renderer.pending_flip_opts !== null) {
 			renderer.dropped_frames += 1;
 		}
 		renderer.pending_flip_opts = opts;
+	});
+
+	ipcRenderer.on("effect", (event, opts) => {
+		let factory = animations[opts.function];
+		renderer.animators.push(factory(opts, renderer));
 	});
 
 	// --------------------------------------------------------------
