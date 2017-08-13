@@ -29,6 +29,7 @@ type GridWindow struct {
 	Highlight		Point						`json:"highlight"`
 	CameraX			int							`json:"camerax"`		// Only used to keep animations in alignment with the world
 	CameraY			int							`json:"cameray"`		// Only used to keep animations in alignment with the world
+	Title			string						`json:"title"`
 
 	Mutex			sync.Mutex					`json:"-"`
 	LastSend		time.Time					`json:"-"`
@@ -59,6 +60,8 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 
 	w.Chars = make([]string, width * height)
 	w.Colours = make([]string, width * height)
+
+	w.Title = name
 
 	w.Clear()
 
@@ -145,6 +148,14 @@ func (w *GridWindow) Clear() {
 		w.Colours[n] = CLEAR_COLOUR
 	}
 	w.Highlight = Point{-1, -1}
+}
+
+func (w *GridWindow) SetTitle(s string) {
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
+	w.Title = s
 }
 
 func (w *GridWindow) Flip() {

@@ -10,6 +10,7 @@
 	table {
 		border-collapse: collapse;
 		table-layout: fixed;
+		background: none !important;
 	}
 	td {
 		text-align: center;
@@ -19,7 +20,7 @@
 	.hover:hover {
 		color: white !important;
 	}
-	.overlay {
+	#canvas {
 		pointer-events: none;
 		background: none !important;
 	}
@@ -27,15 +28,17 @@
 </head>
 <body>
 
+<!-- One has to choose which of the canvas/table are on top... -->
+
 <div id="maintable" style="position: absolute;"></div>
-<canvas id="canvas" width="0" height="0" class="overlay" style="position: absolute;"></canvas>
+<canvas id="canvas" width="0" height="0" style="position: absolute;"></canvas>
 
 <script>
 	"use strict";
 
 	window.onerror = (errorMsg, url, lineNo, columnNo, error) => {
-		ipcRenderer.send("error", {msg: `\n    ${url} (${lineNo}):\n    ${errorMsg}`})
-	}
+		ipcRenderer.send("error", {msg: `\n    ${url} (${lineNo}):\n    ${errorMsg}`});
+	};
 
 	const alert = require("../electronbridge_js/alert");
 	const fs = require("fs");
@@ -66,9 +69,9 @@
 			}
 		}
 
-		let restored = raw_json_lines.join("\n")
+		let restored = raw_json_lines.join("\n");
 
-		return JSON.parse(restored)
+		return JSON.parse(restored);
 	}
 
 	function id_from_xy(x, y) {
@@ -86,6 +89,8 @@
 		let renderer = {
 			pending_flip_opts: null,
 			dropped_frames: 0,
+			dropped_animations: 0,
+			stressed: false,
 			inited: false,
 			highlight_x: -1,
 			highlight_y: -1,
@@ -108,8 +113,8 @@
 			renderer.boxheight = opts.boxheight;
 			renderer.uid = opts.uid;
 
-			log(`initial window size: ${document.querySelector("body").scrollWidth} x ${document.querySelector("body").scrollHeight}`)
-			log(`theoretical size required: ${opts.width * opts.boxwidth} x ${opts.height * opts.boxheight}`)
+			log(`initial window size: ${document.querySelector("body").scrollWidth} x ${document.querySelector("body").scrollHeight}`);
+			log(`theoretical size required: ${opts.width * opts.boxwidth} x ${opts.height * opts.boxheight}`);
 
 			// Make the table...
 
@@ -163,7 +168,7 @@
 			// Find out how much space we really need and resize the window to that size.
 
 			let body = document.querySelector("body");
-			log(`actual body size: ${body.scrollWidth} x ${body.scrollHeight}`)
+			log(`actual body size: ${body.scrollWidth} x ${body.scrollHeight}`);
 			renderer.resize(body.scrollWidth, body.scrollHeight);
 		};
 
@@ -181,6 +186,7 @@
 			if (opts) {
 				renderer.camerax = opts.camerax;
 				renderer.cameray = opts.cameray;
+				document.title = opts.title;
 			}
 
 			let already_cleared = false;
@@ -312,7 +318,7 @@
 
 		renderer.pixel_xy_from_grid = (x, y) => {
 
-			// Takes the camera position into account.
+			// Takes the camera position into account. Returns the centre of the box.
 
 			let i = (x - renderer.camerax) * renderer.true_boxwidth + renderer.true_boxwidth / 2;
 			let j = (y - renderer.cameray) * renderer.true_boxheight + renderer.true_boxheight / 2;
@@ -341,11 +347,21 @@
 		}
 		if (renderer.pending_flip_opts !== null) {
 			renderer.dropped_frames += 1;
+			renderer.stressed = true;		// Not sure if this is adequate.
+		} else {
+			renderer.stressed = false;
 		}
 		renderer.pending_flip_opts = opts;
 	});
 
 	ipcRenderer.on("effect", (event, opts) => {
+		if (!renderer.inited) {
+			return;
+		}
+		if (renderer.stressed) {
+			renderer.dropped_animations += 1;
+			return;
+		}
 		let factory = animations[opts.function];
 		renderer.animators.push(factory(opts, renderer));
 	});

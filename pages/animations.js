@@ -9,17 +9,17 @@ const virtue = canvas.getContext("2d");
 
 const in_canvas = (x, y) => {
 	if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
-		return false
+		return false;
 	}
-	return true
-}
+	return true;
+};
 
 const NULL_ANIMATOR = {		// This is sort of a reference object.
 	x: 0,
 	y: 0,
 	finished: true,
 	step: () => null,
-}
+};
 
 exports.make_shot = (opts, renderer) => {
 
@@ -28,10 +28,9 @@ exports.make_shot = (opts, renderer) => {
 	}
 
 	let frame = 0;
-	let total_dist = Math.sqrt((opts.x2 - opts.x1) * (opts.x2 - opts.x1) + (opts.y2 - opts.y1) * (opts.y2 - opts.y1));
 
 	if (opts.duration <= 0) {
-		opts.duration = 1
+		opts.duration = 1;
 	}
 
 	let frame_dx = (opts.x2 - opts.x1) / opts.duration;
@@ -51,14 +50,13 @@ exports.make_shot = (opts, renderer) => {
 			return;
 		}
 
-		let next_x = that.x + frame_dx
-		let next_y = that.y + frame_dy
+		let next_x = that.x + frame_dx;
+		let next_y = that.y + frame_dy;
 
-		let [x1p, y1p] = renderer.pixel_xy_from_grid(that.x, that.y)
-		let [x2p, y2p] = renderer.pixel_xy_from_grid(next_x, next_y)
+		let [x1p, y1p] = renderer.pixel_xy_from_grid(that.x, that.y);
+		let [x2p, y2p] = renderer.pixel_xy_from_grid(next_x, next_y);
 
 		if (in_canvas(x1p, y1p) && in_canvas(x2p, y2p)) {
-
 			virtue.strokeStyle = opts.colour;
 			virtue.beginPath();
 			virtue.moveTo(x1p, y1p);
@@ -75,9 +73,14 @@ exports.make_shot = (opts, renderer) => {
 
 exports.make_flash = (opts, renderer) => {
 
+	const duration = 20;
+	const max_opacity = 0.5;
+
 	let r = opts.r;
 	let g = opts.g;
 	let b = opts.b;
+
+	let frame = 0;
 
 	let that = Object.create(null);
 	that.x = opts.x;
@@ -86,20 +89,21 @@ exports.make_flash = (opts, renderer) => {
 
 	that.step = () => {
 
-		if (r === 0 && g === 0 && b === 0) {
+		frame++;
+
+		if (frame > duration) {
 			that.finished = true;
 			return;
 		}
 
-		let [x, y] = renderer.pixel_xy_from_grid(that.x, that.y)
+		let [x, y] = renderer.pixel_xy_from_grid(that.x, that.y);
 
-		r -= 20; if (r < 0) r = 0;
-		g -= 20; if (g < 0) g = 0;
-		b -= 20; if (b < 0) b = 0;
-
-		virtue.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`
-		virtue.fillRect(x - renderer.true_boxwidth / 2, y - renderer.true_boxheight / 2, renderer.true_boxwidth, renderer.true_boxheight);
-	}
+		if (in_canvas(x, y)) {
+			let a = ((duration - frame) / duration) * max_opacity;
+			virtue.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+			virtue.fillRect(x - renderer.true_boxwidth / 2, y - renderer.true_boxheight / 2, renderer.true_boxwidth, renderer.true_boxheight);
+		}
+	};
 
 	return that;
-}
+};
