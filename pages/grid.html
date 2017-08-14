@@ -97,8 +97,6 @@
 			camerax: 0,
 			cameray: 0,
 			animators: [],
-			callbacks_asap: [],
-			callbacks_on_update: [],
 		};
 
 		renderer.init = (opts) => {
@@ -204,25 +202,11 @@
 				}
 			}
 
-			// Some callbacks want to be run on the next draw, i.e. now:
-
-			for (let n = 0; n < renderer.callbacks_asap.length; n++) {
-				renderer.callbacks_asap[n]();
-			}
-			renderer.callbacks_asap = [];
-
 			// First return point:
 
 			if (!opts) {
 				return;
 			}
-
-			// Some callbacks want to be run only on an actual update:
-
-			for (let n = 0; n < renderer.callbacks_on_update.length; n++) {
-				renderer.callbacks_on_update[n]();
-			}
-			renderer.callbacks_on_update = [];
 
 			// There's some nonsense in JS where astral characters are split in 2.
 			// But we can deal with this by using Array.from, which makes an array of strings each representing a character.

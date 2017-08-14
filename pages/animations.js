@@ -14,9 +14,7 @@ const in_canvas = (x, y) => {
 	return true;
 };
 
-const NULL_ANIMATOR = {		// This is sort of a reference object.
-	x: 0,
-	y: 0,
+const NULL_ANIMATOR = {		// This is sort of a reference object. Every animator must have these 2 things.
 	finished: true,
 	step: () => null,
 };
@@ -33,14 +31,14 @@ exports.make_shot = (opts, renderer) => {
 		opts.duration = 1;
 	}
 
+	let x = opts.x1;
+	let y = opts.y1;
+
 	let frame_dx = (opts.x2 - opts.x1) / opts.duration;
 	let frame_dy = (opts.y2 - opts.y1) / opts.duration;
 
 	let that = Object.create(null);
-	that.x = opts.x1 + frame_dx / 2;
-	that.y = opts.y1 + frame_dy / 2;
 	that.finished = false;
-
 	that.step = () => {
 
 		frame++;
@@ -50,10 +48,10 @@ exports.make_shot = (opts, renderer) => {
 			return;
 		}
 
-		let next_x = that.x + frame_dx;
-		let next_y = that.y + frame_dy;
+		let next_x = x + frame_dx;
+		let next_y = y + frame_dy;
 
-		let [x1p, y1p] = renderer.pixel_xy_from_grid(that.x, that.y);
+		let [x1p, y1p] = renderer.pixel_xy_from_grid(x, y);
 		let [x2p, y2p] = renderer.pixel_xy_from_grid(next_x, next_y);
 
 		if (in_canvas(x1p, y1p) && in_canvas(x2p, y2p)) {
@@ -62,10 +60,13 @@ exports.make_shot = (opts, renderer) => {
 			virtue.moveTo(x1p, y1p);
 			virtue.lineTo(x2p, y2p);
 			virtue.stroke();
+		} else {
+			that.finished = true;
+			return;
 		}
 
-		that.x = next_x;
-		that.y = next_y;
+		x = next_x;
+		y = next_y;
 	};
 
 	return that;
@@ -82,11 +83,11 @@ exports.make_flash = (opts, renderer) => {
 
 	let frame = 0;
 
-	let that = Object.create(null);
-	that.x = opts.x;
-	that.y = opts.y;
-	that.finished = false;
+	let x = opts.x;
+	let y = opts.y;
 
+	let that = Object.create(null);
+	that.finished = false;
 	that.step = () => {
 
 		frame++;
@@ -96,12 +97,15 @@ exports.make_flash = (opts, renderer) => {
 			return;
 		}
 
-		let [x, y] = renderer.pixel_xy_from_grid(that.x, that.y);
+		let [i, j] = renderer.pixel_xy_from_grid(x, y);
 
-		if (in_canvas(x, y)) {
+		if (in_canvas(i, j)) {
 			let a = ((duration - frame) / duration) * max_opacity;
 			virtue.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
-			virtue.fillRect(x - renderer.true_boxwidth / 2, y - renderer.true_boxheight / 2, renderer.true_boxwidth, renderer.true_boxheight);
+			virtue.fillRect(i - renderer.true_boxwidth / 2, j - renderer.true_boxheight / 2, renderer.true_boxwidth, renderer.true_boxheight);
+		} else {
+			that.finished = true;
+			return;
 		}
 	};
 

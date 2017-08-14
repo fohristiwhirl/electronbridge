@@ -23,7 +23,7 @@ function rebuild_menu(write_to_exe, registered_commands) {
 			submenu: [
 				{
 					label: "About",
-					click: () => alert("Electron Bridge: window manager for Golang via Electron"),
+					click: () => alert(`Electron Bridge: window manager for Golang via Electron ${process.versions.electron}`),
 				},
 				{
 					type: "separator",
