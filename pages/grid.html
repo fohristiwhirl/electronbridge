@@ -40,18 +40,24 @@
 		ipcRenderer.send("error", {msg: `\n    ${url} (${lineNo}):\n    ${errorMsg}`});
 	};
 
+	// --------------------------------------------------------------
+
 	const alert = require("../electronbridge_js/alert");
 	const fs = require("fs");
 	const ipcRenderer = require("electron").ipcRenderer;
 
-	const canvas = document.getElementById("canvas");
-	const virtue = canvas.getContext("2d");
+	// --------------------------------------------------------------
 
 	const animations = require("./animations");
 
 	// --------------------------------------------------------------
 
-	const colour_dict = parse_commented_json("colours.json");
+	const canvas = document.getElementById("canvas");
+	const virtue = canvas.getContext("2d");
+
+	// --------------------------------------------------------------
+
+	let colour_dict = parse_commented_json("colours.json");
 
 	// --------------------------------------------------------------
 
@@ -97,6 +103,7 @@
 			camerax: 0,
 			cameray: 0,
 			animators: [],
+			td_lookup: [],
 		};
 
 		renderer.init = (opts) => {
@@ -155,6 +162,16 @@
 					element.addEventListener("mouseover", (evt) => {
 						ipcRenderer.send("mouseover", {x: x, y: y});		// As above
 					});
+				}
+			}
+
+			// Cache the TD elements in an array for faster lookup...
+
+			for (let y = 0; y < renderer.height; y++) {						// Start with a y loop here.
+				for (let x = 0; x < renderer.width; x++) {
+					let id = id_from_xy(x, y);
+					let element = document.getElementById(id);
+					renderer.td_lookup.push(element);						// The lookup table is ordered just like the incoming Golang strings.
 				}
 			}
 
@@ -222,8 +239,9 @@
 				// Clear old highlight...
 
 				if (renderer.highlight_x >= 0) {
-					let id = id_from_xy(renderer.highlight_x, renderer.highlight_y);
-					let element = document.getElementById(id);
+
+					let element = renderer.td_lookup[renderer.highlight_y * renderer.width + renderer.highlight_x];
+
 					if (element) {
 						element.style["transition"] = "none";
 						element.style["background-color"] = "#000000";
@@ -236,8 +254,9 @@
 				renderer.highlight_y = highlight.y;
 
 				if (renderer.highlight_x >= 0) {
-					let id = id_from_xy(renderer.highlight_x, renderer.highlight_y);
-					let element = document.getElementById(id);
+
+					let element = renderer.td_lookup[renderer.highlight_y * renderer.width + renderer.highlight_x];
+
 					if (element) {
 						element.style["transition"] = "none";
 						element.style["background-color"] = "#494949";
@@ -247,25 +266,31 @@
 
 			// Character, colour...
 
-			for (let x = 0; x < renderer.width; x++) {
-				for (let y = 0; y < renderer.height; y++) {
-					let index = y * renderer.width + x;
-					let id = id_from_xy(x, y);
-					let element = document.getElementById(id);
-					if (element) {
+			let length = renderer.td_lookup.length;
 
-						// Set character...
+			for (let n = 0; n < length; n++) {
 
-						element.innerHTML = char_array[index];
+				let element = renderer.td_lookup[n];
 
-						// Set colour...
+				if (element) {
 
-						let colour_key = colour_array[index];
-						let colour = colour_dict[colour_key];
+					// Set character...
 
-						if (colour) {
+					if (element.innerHTML != char_array[n]) {
+						element.innerHTML = char_array[n];
+					}
+
+					// Set colour...
+
+					let colour_key = colour_array[n];
+					let colour = colour_dict[colour_key];
+
+					if (colour) {
+						if (element.style["color"] != colour) {
 							element.style["color"] = colour;
-						} else {
+						}
+					} else {
+						if (element.style["color"] != "#ffffff") {
 							element.style["color"] = "#ffffff";
 						}
 					}
@@ -286,12 +311,12 @@
 		};
 
 		renderer.cache_true_sizes = () => {
-			let top_left_element = document.getElementById(id_from_xy(0, 0));
+			let top_left_element = renderer.td_lookup[0];
 			let top_left_bound = top_left_element.getBoundingClientRect();
 			let top_left_x = top_left_bound.left;
 			let top_left_y = top_left_bound.top;
 
-			let bottom_right_element = document.getElementById(id_from_xy(renderer.width - 1, renderer.height - 1));
+			let bottom_right_element = renderer.td_lookup[renderer.td_lookup.length - 1];
 			let bottom_right_bound = bottom_right_element.getBoundingClientRect();
 			let bottom_right_x = bottom_right_bound.right;
 			let bottom_right_y = bottom_right_bound.bottom;

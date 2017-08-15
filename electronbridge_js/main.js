@@ -11,6 +11,8 @@ const windows = require("./windows");
 const DEV_LOG_WINDOW_ID = -1;
 const TARGET_APP = "app.exe";
 
+let about_message = `Electron Bridge: window manager for Golang via Electron ${process.versions.electron}`;
+
 electron.app.on("ready", () => {
 	main();
 });
@@ -23,7 +25,7 @@ function rebuild_menu(write_to_exe, registered_commands) {
 			submenu: [
 				{
 					label: "About",
-					click: () => alert(`Electron Bridge: window manager for Golang via Electron ${process.versions.electron}`),
+					click: () => alert(about_message),
 				},
 				{
 					type: "separator",
@@ -203,6 +205,10 @@ function main() {
 
 		if (j.command === "buildmenu") {
 			rebuild_menu(write_to_exe, registered_commands);
+		}
+
+		if (j.command === "about") {
+			about_message = j.content + "\n" + `Electron ${process.versions.electron}`;
 		}
 	});
 

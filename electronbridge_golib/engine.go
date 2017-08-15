@@ -460,6 +460,16 @@ func BuildMenu() {
 	sendoutgoingmessage(m)
 }
 
+func SetAbout(s string) {
+
+	m := OutgoingMessage{
+		Command: "about",
+		Content: s,
+	}
+
+	sendoutgoingmessage(m)
+}
+
 // ----------------------------------------------------------
 
 func sendoutgoingmessage(m OutgoingMessage) {
