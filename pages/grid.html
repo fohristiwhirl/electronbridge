@@ -88,6 +88,10 @@
 		ipcRenderer.send("log", {msg: m});
 	}
 
+	function log_error(m) {
+		ipcRenderer.send("error", {msg: m});
+	}
+
 	// --------------------------------------------------------------
 
 	function make_renderer() {
@@ -372,7 +376,11 @@
 			return;
 		}
 		let factory = animations[opts.function];
-		renderer.animators.push(factory(opts, renderer));
+		if (factory === undefined) {
+			log_error(`Unknown effect '${opts.function}'`);
+		} else {
+			renderer.animators.push(factory(opts, renderer));
+		}
 	});
 
 	// --------------------------------------------------------------

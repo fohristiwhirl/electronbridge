@@ -152,7 +152,7 @@ exports.screenshot = (uid) => {
     		fs.mkdirSync("screenshots");
 		}
 		let buffer = image.toPNG();
-		fs.writeFile(`screenshots/screenshot_${Date.now()}.png`, buffer);
+		fs.writeFile(`screenshots/screenshot_${Date.now()}.png`, buffer, () => null);
 	});
 };
 

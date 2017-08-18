@@ -16,11 +16,11 @@ type Effect struct {
 	R				int							`json:"r"`
 	G				int							`json:"g"`
 	B				int							`json:"b"`
-	Duration		float64						`json:"duration"`
-	Colour			string						`json:"colour"`
+	Duration		int							`json:"duration"`
+	Opacity			float64						`json:"opacity"`
 }
 
-func MakeShot(w Window, x1, y1, x2, y2 int, duration float64, colour string) {
+func MakeShot(w Window, x1, y1, x2, y2, r, g, b, duration int) {
 
 	m := OutgoingMessage{
 		Command: "effect",
@@ -31,15 +31,17 @@ func MakeShot(w Window, x1, y1, x2, y2 int, duration float64, colour string) {
 			Y1: y1,
 			X2: x2,
 			Y2: y2,
+			R: r,
+			G: g,
+			B: b,
 			Duration: duration,
-			Colour: colour,
 		},
 	}
 
 	sendoutgoingmessage(m)
 }
 
-func MakeFlash(w Window, x, y, r, g, b int) {
+func MakeFlash(w Window, x, y, r, g, b, duration int, opacity float64) {
 
 	m := OutgoingMessage{
 		Command: "effect",
@@ -51,6 +53,8 @@ func MakeFlash(w Window, x, y, r, g, b int) {
 			R: r,
 			G: g,
 			B: b,
+			Duration: duration,
+			Opacity: opacity,
 		},
 	}
 

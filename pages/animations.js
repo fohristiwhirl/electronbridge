@@ -34,6 +34,8 @@ exports.make_shot = (opts, renderer) => {
 	let x = opts.x1;
 	let y = opts.y1;
 
+	let colour = `rgb(${opts.r}, ${opts.g}, ${opts.b})`;
+
 	let frame_dx = (opts.x2 - opts.x1) / opts.duration;
 	let frame_dy = (opts.y2 - opts.y1) / opts.duration;
 
@@ -55,7 +57,7 @@ exports.make_shot = (opts, renderer) => {
 		let [x2p, y2p] = renderer.pixel_xy_from_grid(next_x, next_y);
 
 		if (in_canvas(x1p, y1p) && in_canvas(x2p, y2p)) {
-			virtue.strokeStyle = opts.colour;
+			virtue.strokeStyle = colour;
 			virtue.beginPath();
 			virtue.moveTo(x1p, y1p);
 			virtue.lineTo(x2p, y2p);
@@ -74,17 +76,11 @@ exports.make_shot = (opts, renderer) => {
 
 exports.make_flash = (opts, renderer) => {
 
-	const duration = 20;
-	const max_opacity = 0.5;
-
-	let r = opts.r;
-	let g = opts.g;
-	let b = opts.b;
-
 	let frame = 0;
 
-	let x = opts.x;
-	let y = opts.y;
+	let r = Math.floor(opts.r)
+	let g = Math.floor(opts.g)
+	let b = Math.floor(opts.b)
 
 	let that = Object.create(null);
 	that.finished = false;
@@ -92,15 +88,15 @@ exports.make_flash = (opts, renderer) => {
 
 		frame++;
 
-		if (frame > duration) {
+		if (frame > opts.duration) {
 			that.finished = true;
 			return;
 		}
 
-		let [i, j] = renderer.pixel_xy_from_grid(x, y);
+		let [i, j] = renderer.pixel_xy_from_grid(opts.x, opts.y);
 
 		if (in_canvas(i, j)) {
-			let a = ((duration - frame) / duration) * max_opacity;
+			let a = ((opts.duration - frame) / opts.duration) * opts.opacity;
 			virtue.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
 			virtue.fillRect(i - renderer.true_boxwidth / 2, j - renderer.true_boxheight / 2, renderer.true_boxwidth, renderer.true_boxheight);
 		} else {
@@ -111,3 +107,4 @@ exports.make_flash = (opts, renderer) => {
 
 	return that;
 };
+
