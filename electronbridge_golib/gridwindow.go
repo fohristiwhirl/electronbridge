@@ -11,6 +11,7 @@ import (
 const (
 	CLEAR_CHAR = " "
 	CLEAR_COLOUR = "w"
+	CLEAR_BACKGROUND = "0"
 )
 
 type StringSlice []string	// For convenience, things that should really be runes are stored as strings
@@ -26,6 +27,7 @@ type GridWindow struct {
 	Height			int							`json:"height"`
 	Chars			StringSlice					`json:"chars"`
 	Colours			StringSlice					`json:"colours"`
+	Backgrounds		StringSlice					`json:"backgrounds"`
 	Highlight		Point						`json:"highlight"`
 	CameraX			int							`json:"camerax"`		// Only used to keep animations in alignment with the world
 	CameraY			int							`json:"cameray"`		// Only used to keep animations in alignment with the world
@@ -60,6 +62,7 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 
 	w.Chars = make([]string, width * height)
 	w.Colours = make([]string, width * height)
+	w.Backgrounds = make([]string, width * height)
 
 	w.Title = name
 
@@ -88,7 +91,8 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 	return &w
 }
 
-func (w *GridWindow) Set(x, y int, char string, colour string) {
+
+func (w *GridWindow) Set(x, y int, char, colour, background string) {
 
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
@@ -101,6 +105,10 @@ func (w *GridWindow) Set(x, y int, char string, colour string) {
 		panic("GridWindow.Set(): utf8.RuneCountInString(colour) != 1")
 	}
 
+	if utf8.RuneCountInString(background) != 1 {
+		panic("GridWindow.Set(): utf8.RuneCountInString(background) != 1")
+	}
+
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
 		return
@@ -108,10 +116,7 @@ func (w *GridWindow) Set(x, y int, char string, colour string) {
 
 	w.Chars[index] = char
 	w.Colours[index] = colour
-}
-
-func (w *GridWindow) SetPointSpot(point Point, spot Spot) {
-	w.Set(point.X, point.Y, spot.Char, spot.Colour)
+	w.Backgrounds[index] = background
 }
 
 func (w *GridWindow) Get(x, y int) Spot {
@@ -121,13 +126,14 @@ func (w *GridWindow) Get(x, y int) Spot {
 
 	index := y * w.Width + x
 	if index < 0 || index >= len(w.Chars) || x < 0 || x >= w.Width || y < 0 || y >= w.Height {
-		return Spot{Char: CLEAR_CHAR, Colour: CLEAR_COLOUR}
+		return Spot{Char: CLEAR_CHAR, Colour: CLEAR_COLOUR, Background: CLEAR_BACKGROUND}
 	}
 
 	char := w.Chars[index]
 	colour := w.Colours[index]
+	background := w.Backgrounds[index]
 
-	return Spot{Char: char, Colour: colour}
+	return Spot{Char: char, Colour: colour, Background: background}
 }
 
 func (w *GridWindow) SetHighlight(x, y int) {
@@ -146,6 +152,7 @@ func (w *GridWindow) Clear() {
 	for n := 0; n < len(w.Chars); n++ {
 		w.Chars[n] = CLEAR_CHAR
 		w.Colours[n] = CLEAR_COLOUR
+		w.Backgrounds[n] = CLEAR_BACKGROUND
 	}
 	w.Highlight = Point{-1, -1}
 }

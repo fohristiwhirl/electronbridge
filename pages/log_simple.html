@@ -34,6 +34,14 @@
 		pre.innerHTML += opts.msg;
 	});
 
+	document.addEventListener("keydown", (evt) => {
+		ipcRenderer.send("keydown", {key: evt.key});
+	});
+
+	document.addEventListener("keyup", (evt) => {
+		ipcRenderer.send("keyup", {key: evt.key});
+	});
+
 	ipcRenderer.send("ready", null);
 </script>
 

@@ -100,6 +100,7 @@ type MouseLocation struct {
 type Spot struct {
 	Char			string
 	Colour			string
+	Background		string
 }
 
 // ----------------------------------------------------------
@@ -520,6 +521,16 @@ func AllowQuit() {
 	m := OutgoingMessage{
 		Command: "allowquit",
 		Content: nil,
+	}
+
+	sendoutgoingmessage(m)
+}
+
+func BringToFront(w Window) {
+
+	m := OutgoingMessage{
+		Command: "front",
+		Content: w.GetUID(),
 	}
 
 	sendoutgoingmessage(m)

@@ -234,39 +234,10 @@
 
 			let char_array = Array.from(opts.chars);
 			let colour_array = Array.from(opts.colours);
+			let background_array = Array.from(opts.backgrounds);
+
 			let highlight = opts.highlight;
-
-			// Highlight... (grey square)
-
-			if (highlight.x !== renderer.highlight_x || highlight.y !== renderer.highlight_y) {
-
-				// Clear old highlight...
-
-				if (renderer.highlight_x >= 0) {
-
-					let element = renderer.td_lookup[renderer.highlight_y * renderer.width + renderer.highlight_x];
-
-					if (element) {
-						element.style["transition"] = "none";
-						element.style["background-color"] = "#000000";
-					}
-				}
-
-				// Set new highlight...
-
-				renderer.highlight_x = highlight.x;
-				renderer.highlight_y = highlight.y;
-
-				if (renderer.highlight_x >= 0) {
-
-					let element = renderer.td_lookup[renderer.highlight_y * renderer.width + renderer.highlight_x];
-
-					if (element) {
-						element.style["transition"] = "none";
-						element.style["background-color"] = "#494949";
-					}
-				}
-			}
+			let highlight_index = highlight.y * renderer.width + highlight.x
 
 			// Character, colour...
 
@@ -277,12 +248,6 @@
 				let element = renderer.td_lookup[n];
 
 				if (element) {
-
-					// Set character...
-
-					if (element.innerHTML != char_array[n]) {
-						element.innerHTML = char_array[n];
-					}
 
 					// Set colour...
 
@@ -297,6 +262,33 @@
 						if (element.style["color"] != "#ffffff") {
 							element.style["color"] = "#ffffff";
 						}
+					}
+
+					// Set background...
+
+					if (n === highlight_index) {
+						if (element.style["background-color"] != "#494949") {
+							element.style["background-color"] = "#494949";
+						}
+					} else {
+						colour_key = background_array[n];
+						colour = colour_dict[colour_key];
+
+						if (colour) {
+							if (element.style["background-color"] != colour) {
+								element.style["background-color"] = colour;
+							}
+						} else {
+							if (element.style["background-color"] != "#ffffff") {
+								element.style["background-color"] = "#ffffff";
+							}
+						}
+					}
+
+					// Set character...
+
+					if (element.innerHTML != char_array[n]) {
+						element.innerHTML = char_array[n];
 					}
 				}
 			}

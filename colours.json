@@ -2,9 +2,10 @@
 	"b": "DeepSkyBlue",
 	"g": "LightGreen",
 	"G": "GoldenRod",
-	"o": "orange",
-	"p": "purple",
-	"r": "red",
-	"w": "white",
-	"y": "yellow"
+	"o": "Orange",
+	"p": "Purple",
+	"r": "Red",
+	"w": "White",
+	"y": "Yellow",
+	"0": "black"
 }

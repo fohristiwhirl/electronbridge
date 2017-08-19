@@ -9,41 +9,20 @@
 	a {
 		color: orange;
 	}
-	ul {
-		list-style: none;
-	}
-	li {
-		font-family: monospace;
-    	white-space: pre;
-    }
 </style>
 </head>
 <body>
 
-<h2>[ <a href="#" onclick="clear_all(); return false;">clear all</a> ]</h2>
-
-<hr>
-
-<ul id="log"></ul>
+<div id="content"></div>
 
 <script>
 	"use strict";
 
 	const ipcRenderer = require("electron").ipcRenderer;
 
-	function clear_all() {
-		let list = document.getElementById("log");
-		list.innerHTML = "";
-	}
-
 	ipcRenderer.on("update", (event, opts) => {
-
-		let list = document.getElementById("log");
-		list.innerHTML = "<li>" + opts.msg + "</li>" + list.innerHTML;
-
-		while (list.childNodes.length > 200) {
-			list.removeChild(list.lastChild);
-		}
+		let content = document.getElementById("content");
+		content.innerHTML = opts.msg;
 	});
 
 	document.addEventListener("keydown", (evt) => {

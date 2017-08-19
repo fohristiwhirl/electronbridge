@@ -87,8 +87,8 @@ function rebuild_menu(write_to_exe, registered_commands) {
 
 	for (let n = 0; n < screenshot_items.length; n++) {
 		let item = screenshot_items[n];
-		let a = n + 1;
-		item.accelerator = a.toString();
+		// let a = n + 1;
+		// item.accelerator = a.toString();
 		template[2]["submenu"].push(item);
 	}
 
@@ -217,6 +217,10 @@ function main() {
 							`Electron ${process.versions.electron}\n` +
 							`Node ${process.versions.node}\n` +
 							`V8 ${process.versions.v8}`
+		}
+
+		if (j.command === "front") {
+			windows.show(j.content)
 		}
 	});
 

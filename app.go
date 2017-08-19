@@ -23,7 +23,7 @@ func main() {
 		s := fmt.Sprintf("%d", i)
 
 		for x := 0; x < len(s); x++ {
-			main_window.Set(x + 1, 1, string(s[x]), "g")
+			main_window.Set(x + 1, 1, string(s[x]), "g", "0")		// x, y, char, colour, bg-colour
 		}
 
 		main_window.Flip()
