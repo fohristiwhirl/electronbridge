@@ -32,6 +32,7 @@ type GridWindow struct {
 	CameraX			int							`json:"camerax"`		// Only used to keep animations in alignment with the world
 	CameraY			int							`json:"cameray"`		// Only used to keep animations in alignment with the world
 	Title			string						`json:"title"`
+	AckRequired		string						`json:"ackrequired"`	// Updated each flip (maybe set to "" though)
 
 	Mutex			sync.Mutex					`json:"-"`
 	LastSend		time.Time					`json:"-"`
@@ -165,18 +166,45 @@ func (w *GridWindow) SetTitle(s string) {
 	w.Title = s
 }
 
-func (w *GridWindow) Flip() {
+func (w *GridWindow) Flip(ack_channel chan bool) {
 
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
 	now := time.Now()
 
+	// Don't send frames in very rapid succession; just ignore such frames instead.
+	// If an ack was requested, we close the channel so the waiter receives false.
+
 	if now.Sub(w.LastSend) < 9 * time.Millisecond {
+		if ack_channel != nil {
+			close(ack_channel)
+		}
 		return
 	}
 
 	w.LastSend = now
+
+	if ack_channel == nil {
+
+		w.AckRequired = ""
+
+	} else {
+
+		// The ack we want from the frontend is a unique string. When listener() gets it, it sends true down the channel.
+
+		w.AckRequired = ack_maker.next()			// This is the unique string.
+		register_ack(w.AckRequired, ack_channel)
+
+		// To ensure a waiter will eventually get a message, spin up a goroutine that eventually closes the channel.
+		// The waiter will then receive false when reading from the channel. If the ack comes after this, the normal
+		// sender will panic. This therefore needs a recover statement in the engine.go file. See ack_sender() there.
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			close(ack_channel)
+		}()
+	}
 
 	m := OutgoingMessage{
 		Command: "update",
@@ -186,13 +214,13 @@ func (w *GridWindow) Flip() {
 	sendoutgoingmessage(m)
 }
 
-func (w *GridWindow) FlipWithCamera(CameraX, CameraY int) {
+func (w *GridWindow) FlipWithCamera(CameraX, CameraY int, ack_channel chan bool) {
 
 	// It can be useful to send "camera" values to the frontend.
 	// This function facilitates this. Not every app needs this though.
 
 	w.Mutex.Lock()
-	defer w.Flip()				// Note this...
+	defer w.Flip(ack_channel)				// Note this...
 	defer w.Mutex.Unlock()
 
 	w.CameraX = CameraX

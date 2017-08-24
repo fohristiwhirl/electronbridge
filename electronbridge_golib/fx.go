@@ -17,7 +17,9 @@ type Effect struct {
 	G				int							`json:"g"`
 	B				int							`json:"b"`
 	Duration		int							`json:"duration"`
+	Radius			int							`json:"radius"`
 	Opacity			float64						`json:"opacity"`
+	Points			[]Point						`json:"points"`
 }
 
 func MakeShot(w Window, x1, y1, x2, y2, r, g, b, duration int) {
@@ -55,6 +57,42 @@ func MakeFlash(w Window, x, y, r, g, b, duration int, opacity float64) {
 			B: b,
 			Duration: duration,
 			Opacity: opacity,
+		},
+	}
+
+	sendoutgoingmessage(m)
+}
+
+func MakeExplosion(w Window, x, y, duration, radius int) {
+
+	m := OutgoingMessage{
+		Command: "effect",
+		Content: Effect{
+			Function: "make_explosion",
+			Uid: w.GetUID(),
+			X: x,
+			Y: y,
+			Duration: duration,
+			Radius: radius,
+		},
+	}
+
+	sendoutgoingmessage(m)
+}
+
+func MakeCascade(w Window, r, g, b, duration int, opacity float64, points []Point) {
+
+	m := OutgoingMessage{
+		Command: "effect",
+		Content: Effect{
+			Function: "make_cascade",
+			Uid: w.GetUID(),
+			R: r,
+			G: g,
+			B: b,
+			Duration: duration,
+			Opacity: opacity,
+			Points: points,
 		},
 	}
 

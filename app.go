@@ -26,7 +26,7 @@ func main() {
 			main_window.Set(x + 1, 1, string(s[x]), "g", "0")		// x, y, char, colour, bg-colour
 		}
 
-		main_window.Flip()
+		main_window.Flip(nil)		// Optionally, send a (chan bool) as an argument and get a message when drawing is completed (or aborted).
 
 		for {
 			click, err := electron.GetMousedown(main_window)

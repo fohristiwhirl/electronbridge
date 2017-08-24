@@ -222,6 +222,10 @@ function main() {
 		if (j.command === "front") {
 			windows.show(j.content)
 		}
+
+		if (j.command === "silentlog") {
+			write_to_log(TARGET_APP, j.content);
+		}
 	});
 
 	// Stderr messages from the compiled app...................................
@@ -238,6 +242,16 @@ function main() {
 	});
 
 	// Messages from the renderer..............................................
+
+	ipcMain.on("ack", (event, msg) => {
+		let output = {
+			type: "ack",
+			content: {
+				AckMessage: msg
+			}
+		};
+		write_to_exe(JSON.stringify(output));
+	});
 
 	ipcMain.on("keydown", (event, msg) => {
 

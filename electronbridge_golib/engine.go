@@ -18,29 +18,29 @@ type Window interface {
 // ----------------------------------------------------------
 
 type keypress struct {
-	key string
-	uid int
+	key				string
+	uid				int
 }
 
 type key_map_query struct {
-	response_chan chan bool
-	uid int
-	key string
+	response_chan	chan bool
+	uid				int
+	key				string
 }
 
 type key_queue_query struct {
-	response_chan chan string
-	uid int
+	response_chan	chan string
+	uid				int
 }
 
 type mousepress struct {
-	press Point
-	uid int
+	press			Point
+	uid				int
 }
 
 type mousequery struct {
-	response_chan chan Point
-	uid int
+	response_chan	chan Point
+	uid				int
 }
 
 // ----------------------------------------------------------
@@ -69,20 +69,37 @@ var cmd_query_chan = make(chan chan string)
 
 // ----------------------------------------------------------
 
+var pending_acks = make(map[string]chan bool)
+var pending_acks_mutex sync.Mutex
+
+// ----------------------------------------------------------
+
 type id_object struct {
 	mutex			sync.Mutex
 	current			int
 }
 
-func (i *id_object) next() int {
-	i.mutex.Lock()
-	defer i.mutex.Unlock()
-	i.current += 1
-	return i.current
+func (self *id_object) next() int {
+	self.mutex.Lock()
+	defer self.mutex.Unlock()
+	self.current += 1
+	return self.current
+}
+
+type ack_object struct {
+	mutex			sync.Mutex
+	current			int64
+}
+
+func (self *ack_object) next() string {
+	self.mutex.Lock()
+	defer self.mutex.Unlock()
+	self.current += 1
+	return fmt.Sprintf("%d", self.current)
 }
 
 var id_maker			id_object
-var effect_id_maker		id_object
+var ack_maker			ack_object
 
 // ----------------------------------------------------------
 
@@ -127,6 +144,7 @@ type IncomingMsgContent struct {
 	X				int							`json:"x"`
 	Y				int							`json:"y"`
 	Cmd				string						`json:"cmd"`
+	AckMessage		string						`json:"ackmessage"`
 }
 
 // ----------------------------------------------------------
@@ -205,7 +223,44 @@ func listener() {
 		if msg.Type == "cmd" {
 			cmd_chan <- msg.Content.Cmd
 		}
+
+		if msg.Type == "ack" {
+
+			// We got an ack, the content of which is some unique string. Look it up in our map of acks,
+			// and retrieve the channel down which we are supposed to send true.
+
+			pending_acks_mutex.Lock()
+			ch := pending_acks[msg.Content.AckMessage]
+			delete(pending_acks, msg.Content.AckMessage)
+			pending_acks_mutex.Unlock()
+
+			if ch != nil {
+				go ack_sender(ch)	// Spin up a new goroutine so we don't deadlock even if the ack-requester gave up waiting. Also, this can panic/recover.
+			} else {
+				Logf("listener: got ack '%s' but no channel existed to receive it", msg.Content.AckMessage)
+			}
+		}
 	}
+}
+
+// ----------------------------------------------------------
+
+func ack_sender(ch chan bool) {
+
+	defer func() {
+		recover()
+	}()
+
+	ch <- true		// This can panic if ch has been closed, which is possible, e.g. gridwindow.go closes its ack channels after a timeout.
+}
+
+func register_ack(desired_ack string, ack_channel chan bool) {
+
+	// Safely add to our list of ack messages we're waiting for.
+
+	pending_acks_mutex.Lock()
+	pending_acks[desired_ack] = ack_channel
+	pending_acks_mutex.Unlock()
 }
 
 // ----------------------------------------------------------
@@ -514,6 +569,22 @@ func Logf(format_string string, args ...interface{}) {
 	}
 
 	ERR_msg_chan <- []byte(msg)
+}
+
+func Silentf(format_string string, args ...interface{}) {
+
+	msg := fmt.Sprintf(format_string, args...)
+
+	if len(msg) < 1 {
+		return
+	}
+
+	m := OutgoingMessage{
+		Command: "silentlog",
+		Content: msg,
+	}
+
+	sendoutgoingmessage(m)
 }
 
 func AllowQuit() {

@@ -3,26 +3,37 @@
 <style>
 	body {
 		margin: 0;
+		border: 0;
+		padding: 0;
 		background-color: black;
 		font-family: "Courier";
-		overflow: "hidden";
+		pointer-events: none;
+		user-select: none;
+		cursor: default;
 	}
 	table {
+		margin: 0;
+		border: 0;
+		padding: 0;
 		border-collapse: collapse;
 		table-layout: fixed;
-		background: none !important;
+		background: none;
 	}
 	td {
-		text-align: center;
+		margin: 0;
+		border: 0;
 		padding: 0;
-		cursor: default;
+		text-align: center;
+		pointer-events: auto;
+	}
+	#canvas {
+		margin: 0;
+		border: 0;
+		padding: 0;
+		background: none;
 	}
 	.hover:hover {
 		color: white !important;
-	}
-	#canvas {
-		pointer-events: none;
-		background: none !important;
 	}
 </style>
 </head>
@@ -80,16 +91,18 @@
 		return JSON.parse(restored);
 	}
 
-	function id_from_xy(x, y) {
-		return `td_${x}_${y}`;
-	}
-
 	function log(m) {
 		ipcRenderer.send("log", {msg: m});
 	}
 
 	function log_error(m) {
 		ipcRenderer.send("error", {msg: m});
+	}
+
+	function send_ack_from_opts(opts) {
+		if (opts.ackrequired !== undefined && opts.ackrequired !== "") {
+			ipcRenderer.send("ack", opts.ackrequired);
+		}
 	}
 
 	// --------------------------------------------------------------
@@ -100,7 +113,7 @@
 			pending_flip_opts: null,
 			dropped_frames: 0,
 			dropped_animations: 0,
-			stressed: false,
+			stress: 0,
 			inited: false,
 			highlight_x: -1,
 			highlight_y: -1,
@@ -132,7 +145,7 @@
 			for (let y = 0; y < opts.height; y++) {
 				html += "<tr>";
 				for (let x = 0; x < opts.width; x++) {
-					let id = id_from_xy(x, y);
+					let id = renderer.id_from_xy(x, y);
 					html += `<td><div id="${id}" class="hover" style="width: ${opts.boxwidth}; height: ${opts.boxheight}; overflow: hidden;"></div></td>`;
 				}
 				html += "</tr>";
@@ -154,7 +167,7 @@
 
 			for (let x = 0; x < renderer.width; x++) {
 				for (let y = 0; y < renderer.height; y++) {
-					let id = id_from_xy(x, y);
+					let id = renderer.id_from_xy(x, y);
 					let element = document.getElementById(id);
 					element.addEventListener("mousedown", (evt) => {
 						evt.preventDefault();								// Prevent selecting text with the mouse
@@ -173,7 +186,7 @@
 
 			for (let y = 0; y < renderer.height; y++) {						// Start with a y loop here.
 				for (let x = 0; x < renderer.width; x++) {
-					let id = id_from_xy(x, y);
+					let id = renderer.id_from_xy(x, y);
 					let element = document.getElementById(id);
 					renderer.td_lookup.push(element);						// The lookup table is ordered just like the incoming Golang strings.
 				}
@@ -193,24 +206,102 @@
 
 		renderer.flip = () => {
 
-			// Do this at the start so we don't have to worry about adding this line before every return point
+			// 2017-08-21: Chrome refuses to optimise this if I use let
+			// in the usual way, so here we can have some vars instead...
 
-			requestAnimationFrame(() => renderer.flip());
+			var opts, already_cleared, n, char_array, colour_array,
+				background_array, highlight, highlight_index, length,
+				element, colour_key, colour;
 
 			renderer.cache_true_sizes();
 
-			let opts = renderer.pending_flip_opts;
+			opts = renderer.pending_flip_opts;
 			renderer.pending_flip_opts = null;
 
 			if (opts) {
 				renderer.camerax = opts.camerax;
 				renderer.cameray = opts.cameray;
-				document.title = opts.title;
+				document.title = opts.title; 		// + ` -- df: ${renderer.dropped_frames} -- a: ${renderer.animators.length}`;
+
+				// There's some nonsense in JS where astral characters are split in 2.
+				// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
+
+				char_array = Array.from(opts.chars);
+				colour_array = Array.from(opts.colours);
+				background_array = Array.from(opts.backgrounds);
+
+				highlight = opts.highlight;
+				highlight_index = highlight.y * renderer.width + highlight.x;
+
+				// Character, colour...
+
+				length = renderer.td_lookup.length;
+
+				for (n = 0; n < length; n++) {
+
+					element = renderer.td_lookup[n];
+
+					if (element) {
+
+						// Set colour if we have a non-space (else it doesn't matter)...
+
+						if (char_array[n] !== " ") {
+
+							colour_key = colour_array[n];
+							colour = colour_dict[colour_key];
+
+							if (colour) {
+								if (element.style["color"] !== colour) {
+									element.style["color"] = colour;
+								}
+							} else {
+								if (element.style["color"] !== "rgb(255, 255, 255)") {
+									element.style["color"] = "rgb(255, 255, 255)";
+								}
+							}
+						}
+
+						// Set background...
+
+						if (n === highlight_index) {
+							if (element.style["background-color"] !== "rgb(73, 73, 73)") {
+								element.style["background-color"] = "rgb(73, 73, 73)";
+							}
+						} else {
+							colour_key = background_array[n];
+							colour = colour_dict[colour_key];
+
+							if (colour) {
+								if (element.style["background-color"] !== colour) {
+									element.style["background-color"] = colour;
+								}
+							} else {
+								if (element.style["background-color"] !== "rgb(255, 255, 255)") {
+									element.style["background-color"] = "rgb(255, 255, 255)";
+								}
+							}
+						}
+
+						// Set character... textContent might be faster than innerHTML
+
+						if (element.textContent !== char_array[n]) {
+							element.textContent = char_array[n];
+						}
+					}
+				}
+
+				// ack is sent upon completion (or upon the frame being dropped; see "update" event handler, below).
+
+				send_ack_from_opts(opts)
 			}
 
-			let already_cleared = false;
+			// We do animations whether there's a new update from the backend or not.
+			// We might perhaps one day do them on the DOM, so do them after the above,
+			// so that things like setting background-color has priority here...
 
-			for (let n = 0; n < renderer.animators.length; n++) {
+			already_cleared = false;
+
+			for (n = 0; n < renderer.animators.length; n++) {
 				if (renderer.animators[n].finished) {
 					renderer.animators.splice(n, 1);
 					n--;
@@ -223,75 +314,7 @@
 				}
 			}
 
-			// First return point:
-
-			if (!opts) {
-				return;
-			}
-
-			// There's some nonsense in JS where astral characters are split in 2.
-			// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
-
-			let char_array = Array.from(opts.chars);
-			let colour_array = Array.from(opts.colours);
-			let background_array = Array.from(opts.backgrounds);
-
-			let highlight = opts.highlight;
-			let highlight_index = highlight.y * renderer.width + highlight.x
-
-			// Character, colour...
-
-			let length = renderer.td_lookup.length;
-
-			for (let n = 0; n < length; n++) {
-
-				let element = renderer.td_lookup[n];
-
-				if (element) {
-
-					// Set colour...
-
-					let colour_key = colour_array[n];
-					let colour = colour_dict[colour_key];
-
-					if (colour) {
-						if (element.style["color"] != colour) {
-							element.style["color"] = colour;
-						}
-					} else {
-						if (element.style["color"] != "#ffffff") {
-							element.style["color"] = "#ffffff";
-						}
-					}
-
-					// Set background...
-
-					if (n === highlight_index) {
-						if (element.style["background-color"] != "#494949") {
-							element.style["background-color"] = "#494949";
-						}
-					} else {
-						colour_key = background_array[n];
-						colour = colour_dict[colour_key];
-
-						if (colour) {
-							if (element.style["background-color"] != colour) {
-								element.style["background-color"] = colour;
-							}
-						} else {
-							if (element.style["background-color"] != "#ffffff") {
-								element.style["background-color"] = "#ffffff";
-							}
-						}
-					}
-
-					// Set character...
-
-					if (element.innerHTML != char_array[n]) {
-						element.innerHTML = char_array[n];
-					}
-				}
-			}
+			requestAnimationFrame(() => renderer.flip());
 
 			return;
 		};
@@ -321,7 +344,7 @@
 			renderer.true_boxheight = (bottom_right_y - top_left_y) / renderer.height;
 		};
 
-		renderer.pixel_xy_from_grid = (x, y) => {
+		renderer.pixel_xy_from_world_xy = (x, y) => {
 
 			// Takes the camera position into account. Returns the centre of the box.
 
@@ -329,6 +352,14 @@
 			let j = (y - renderer.cameray) * renderer.true_boxheight + renderer.true_boxheight / 2;
 
 			return [i, j];
+		};
+
+		renderer.grid_xy_from_world_xy = (x, y) => {
+			return [Math.floor(x) - renderer.camerax, Math.floor(y) - renderer.cameray];
+		};
+
+		renderer.id_from_xy = (x, y) => {
+			return `td_${x}_${y}`;
 		};
 
 		renderer.log = log;
@@ -348,13 +379,15 @@
 
 	ipcRenderer.on("update", (event, opts) => {
 		if (!renderer.inited) {
+			send_ack_from_opts(opts)
 			return;
 		}
 		if (renderer.pending_flip_opts !== null) {
+			send_ack_from_opts(renderer.pending_flip_opts)		// Acknowledge the frame we're dropping.
 			renderer.dropped_frames += 1;
-			renderer.stressed = true;		// Not sure if this is adequate.
+			renderer.stress++;
 		} else {
-			renderer.stressed = false;
+			renderer.stress = 0;
 		}
 		renderer.pending_flip_opts = opts;
 	});
@@ -363,7 +396,7 @@
 		if (!renderer.inited) {
 			return;
 		}
-		if (renderer.stressed) {
+		if (renderer.stress >= 3) {
 			renderer.dropped_animations += 1;
 			return;
 		}
