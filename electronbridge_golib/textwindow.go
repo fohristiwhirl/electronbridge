@@ -12,7 +12,7 @@ func (self *TextWindow) GetUID() int {
 	return self.Uid
 }
 
-type NewTextWinMsg struct {
+type new_text_win_msg struct {
 	Name			string						`json:"name"`
 	Page			string						`json:"page"`
 	Uid				int							`json:"uid"`
@@ -22,7 +22,7 @@ type NewTextWinMsg struct {
 	Resizable		bool						`json:"resizable"`
 }
 
-type TextUpdateContent struct {
+type text_update_content struct {
 	Uid				int							`json:"uid"`
 	Msg				string						`json:"msg"`
 }
@@ -33,18 +33,17 @@ func NewTextWindow(name, page string, width, height int, starthidden, resizable 
 
 	w := TextWindow{Uid: uid}
 
-		m := OutgoingMessage{Command: "new", Content: NewTextWinMsg{
-			Name: name,
-			Page: page,
-			Uid: uid,
-			Width: width,
-			Height: height,
-			StartHidden: starthidden,
-			Resizable: resizable,
-		},
+	c := new_text_win_msg{
+		Name: name,
+		Page: page,
+		Uid: uid,
+		Width: width,
+		Height: height,
+		StartHidden: starthidden,
+		Resizable: resizable,
 	}
 
-	sendoutgoingmessage(m)
+	send_command_and_content("new", c)
 
 	return &w
 }
@@ -61,13 +60,10 @@ func (w *TextWindow) Printf(format_string string, args ...interface{}) {
 		msg += "\n"
 	}
 
-	m := OutgoingMessage{
-		Command: "update",
-		Content: TextUpdateContent{
-			Uid: w.Uid,
-			Msg: msg,
-		},
+	c := text_update_content{
+		Uid: w.Uid,
+		Msg: msg,
 	}
 
-	sendoutgoingmessage(m)
+	send_command_and_content("update", c)
 }

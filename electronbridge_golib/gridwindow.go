@@ -14,9 +14,15 @@ const (
 	CLEAR_BACKGROUND = "0"
 )
 
-type StringSlice []string	// For convenience, things that should really be runes are stored as strings
+type Spot struct {
+	Char			string
+	Colour			string
+	Background		string
+}
 
-func (s StringSlice) MarshalJSON() ([]byte, error) {	// Marshalling them means concatenation
+type string_slice []string	// For convenience, things that should really be runes are stored as strings
+
+func (s string_slice) MarshalJSON() ([]byte, error) {	// Marshalling them means concatenation
 	str := strings.Join(s, "")
 	return json.Marshal(str)
 }
@@ -25,9 +31,9 @@ type GridWindow struct {
 	Uid				int							`json:"uid"`
 	Width			int							`json:"width"`
 	Height			int							`json:"height"`
-	Chars			StringSlice					`json:"chars"`
-	Colours			StringSlice					`json:"colours"`
-	Backgrounds		StringSlice					`json:"backgrounds"`
+	Chars			string_slice				`json:"chars"`
+	Colours			string_slice				`json:"colours"`
+	Backgrounds		string_slice				`json:"backgrounds"`
 	Highlight		Point						`json:"highlight"`
 	CameraX			int							`json:"camerax"`		// Only used to keep animations in alignment with the world
 	CameraY			int							`json:"cameray"`		// Only used to keep animations in alignment with the world
@@ -42,7 +48,7 @@ func (self *GridWindow) GetUID() int {
 	return self.Uid
 }
 
-type NewGridWinMsg struct {
+type new_grid_win_msg struct {
 	Name			string						`json:"name"`
 	Page			string						`json:"page"`
 	Uid				int							`json:"uid"`
@@ -71,27 +77,22 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 
 	// Create the message to send to the server...
 
-	m := OutgoingMessage{
-		Command: "new",
-		Content: NewGridWinMsg{
-			Name: name,
-			Page: page,
-			Uid: uid,
-			Width: width,
-			Height: height,
-			BoxWidth: boxwidth,
-			BoxHeight: boxheight,
-			FontPercent: fontpercent,
-			StartHidden: starthidden,
-			Resizable: resizable,
-		},
+	c := new_grid_win_msg{
+		Name: name,
+		Page: page,
+		Uid: uid,
+		Width: width,
+		Height: height,
+		BoxWidth: boxwidth,
+		BoxHeight: boxheight,
+		FontPercent: fontpercent,
+		StartHidden: starthidden,
+		Resizable: resizable,
 	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("new", c)
 
 	return &w
 }
-
 
 func (w *GridWindow) Set(x, y int, char, colour, background string) {
 
@@ -206,12 +207,7 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 		}()
 	}
 
-	m := OutgoingMessage{
-		Command: "update",
-		Content: w,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("update", w)
 }
 
 func (w *GridWindow) FlipWithCamera(CameraX, CameraY int, ack_channel chan bool) {

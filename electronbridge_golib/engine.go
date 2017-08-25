@@ -17,7 +17,7 @@ type Window interface {
 
 // ----------------------------------------------------------
 
-type keypress struct {
+type key_press struct {
 	key				string
 	uid				int
 }
@@ -33,12 +33,12 @@ type key_queue_query struct {
 	uid				int
 }
 
-type mousepress struct {
+type mouse_press struct {
 	press			Point
 	uid				int
 }
 
-type mousequery struct {
+type mouse_query struct {
 	response_chan	chan Point
 	uid				int
 }
@@ -48,15 +48,15 @@ type mousequery struct {
 var OUT_msg_chan = make(chan []byte)
 var ERR_msg_chan = make(chan []byte)
 
-var keydown_chan = make(chan keypress)
-var keyup_chan = make(chan keypress)
+var key_down_chan = make(chan key_press)
+var key_up_chan = make(chan key_press)
 var key_map_query_chan = make(chan key_map_query)
 var key_queue_query_chan = make(chan key_queue_query)
 var key_queue_clear_chan = make(chan int)
 
-var mousedown_chan = make(chan mousepress)
-var mouse_query_chan = make(chan mousequery)
-var mouseclear_chan = make(chan int)
+var mouse_down_chan = make(chan mouse_press)
+var mouse_query_chan = make(chan mouse_query)
+var mouse_clear_chan = make(chan int)
 
 var mouse_xy_chan = make(chan MouseLocation)
 var mouse_xy_query = make(chan chan MouseLocation)
@@ -114,37 +114,11 @@ type MouseLocation struct {
 	Uid				int							`json:"uid"`
 }
 
-type Spot struct {
-	Char			string
-	Colour			string
-	Background		string
-}
-
 // ----------------------------------------------------------
 
-type OutgoingMessage struct {
+type outgoing_msg struct {
 	Command			string						`json:"command"`
 	Content			interface{}					`json:"content"`
-}
-
-// ----------------------------------------------------------
-
-type IncomingMsg struct {
-	Type			string						`json:"type"`
-	Content			IncomingMsgContent			`json:"content"`
-}
-
-type IncomingMsgContent struct {
-
-	// Used for all incoming message types. Not every field will be needed.
-
-	Uid				int							`json:"uid"`
-	Key				string						`json:"key"`
-	Down			bool						`json:"down"`
-	X				int							`json:"x"`
-	Y				int							`json:"y"`
-	Cmd				string						`json:"cmd"`
-	AckMessage		string						`json:"ackmessage"`
 }
 
 // ----------------------------------------------------------
@@ -152,11 +126,11 @@ type IncomingMsgContent struct {
 func init() {
 	go printer()
 	go listener()
-	go keymaster()
-	go mouse_click_master()
-	go mouse_location_master()
-	go quitmaster()
-	go commandmaster()
+	go key_hub()
+	go mouse_click_hub()
+	go mouse_location_hub()
+	go quit_hub()
+	go command_hub()
 }
 
 // ----------------------------------------------------------
@@ -176,6 +150,23 @@ func printer() {
 
 func listener() {
 
+	type incoming_msg_content struct {		// Used for all incoming message types. Not every field will be needed.
+		Uid				int							`json:"uid"`
+		X				int							`json:"x"`
+		Y				int							`json:"y"`
+		Down			bool						`json:"down"`
+		Key				string						`json:"key"`
+		Cmd				string						`json:"cmd"`
+		AckMessage		string						`json:"ackmessage"`
+	}
+
+	type incoming_msg struct {
+		Type			string						`json:"type"`
+		Content			incoming_msg_content		`json:"content"`
+	}
+
+	// ----------------------------------
+
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -187,7 +178,7 @@ func listener() {
 			continue
 		}
 
-		var msg IncomingMsg
+		var msg incoming_msg
 
 		err := json.Unmarshal(scanner.Bytes(), &msg)
 		if err != nil {
@@ -196,15 +187,15 @@ func listener() {
 
 		if msg.Type == "key" {
 			if msg.Content.Down {
-				keydown_chan <- keypress{key: msg.Content.Key, uid: msg.Content.Uid}
+				key_down_chan <- key_press{key: msg.Content.Key, uid: msg.Content.Uid}
 			} else {
-				keyup_chan <- keypress{key: msg.Content.Key, uid: msg.Content.Uid}
+				key_up_chan <- key_press{key: msg.Content.Key, uid: msg.Content.Uid}
 			}
 		}
 
 		if msg.Type == "mouse" {		// Note: uses the same struct as below
 			if msg.Content.Down {
-				mousedown_chan <- mousepress{press: Point{msg.Content.X, msg.Content.Y}, uid: msg.Content.Uid}
+				mouse_down_chan <- mouse_press{press: Point{msg.Content.X, msg.Content.Y}, uid: msg.Content.Uid}
 			}
 		}
 
@@ -265,7 +256,7 @@ func register_ack(desired_ack string, ack_channel chan bool) {
 
 // ----------------------------------------------------------
 
-func keymaster() {
+func key_hub() {
 
 	// Note: at some point we might want both the ability to query a queue
 	// of keystrokes and an ability to see what keys are down NOW.
@@ -301,14 +292,14 @@ func keymaster() {
 
 		// Updates...
 
-		case key_msg := <- keydown_chan:
+		case key_msg := <- key_down_chan:
 
 			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
 
 			make_keymap_if_needed(key_msg.uid)
 			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = true
 
-		case key_msg := <- keyup_chan:
+		case key_msg := <- key_up_chan:
 
 			make_keymap_if_needed(key_msg.uid)
 			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = false
@@ -357,7 +348,7 @@ func ClearKeyQueue(w Window) {
 
 // ----------------------------------------------------------
 
-func mouse_click_master() {
+func mouse_click_hub() {
 
 	mousequeues := make(map[int][]Point)
 
@@ -370,9 +361,9 @@ func mouse_click_master() {
 				query.response_chan <- mousequeues[query.uid][0]
 				mousequeues[query.uid] = mousequeues[query.uid][1:]
 			}
-		case mouse_msg := <- mousedown_chan:
+		case mouse_msg := <- mouse_down_chan:
 			mousequeues[mouse_msg.uid] = append(mousequeues[mouse_msg.uid], mouse_msg.press)
-		case clear_uid := <- mouseclear_chan:
+		case clear_uid := <- mouse_clear_chan:
 			mousequeues[clear_uid] = nil
 		}
 	}
@@ -384,7 +375,7 @@ func GetMousedown(w Window) (Point, error) {
 
 	response_chan := make(chan Point)
 
-	mouse_query_chan <- mousequery{response_chan: response_chan, uid: uid}
+	mouse_query_chan <- mouse_query{response_chan: response_chan, uid: uid}
 
 	point := <- response_chan
 	var err error = nil
@@ -397,12 +388,12 @@ func GetMousedown(w Window) (Point, error) {
 }
 
 func ClearMouseQueue(w Window) {
-	mouseclear_chan <- w.GetUID()
+	mouse_clear_chan <- w.GetUID()
 }
 
 // ----------------------------------------------------------
 
-func mouse_location_master() {
+func mouse_location_hub() {
 
 	var loc MouseLocation
 
@@ -424,7 +415,7 @@ func MouseXY() MouseLocation {
 
 // ----------------------------------------------------------
 
-func quitmaster() {
+func quit_hub() {
 
 	var quit bool
 
@@ -446,7 +437,7 @@ func WeShouldQuit() bool {
 
 // ----------------------------------------------------------
 
-func commandmaster() {
+func command_hub() {
 
 	var queue []string
 
@@ -472,22 +463,11 @@ func RegisterCommand(s string, accel string) {
 		Accelerator		string		`json:"accelerator"`
 	}
 
-	m := OutgoingMessage{
-		Command: "register",
-		Content: item{s, accel},
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("register", item{s, accel})
 }
 
 func RegisterSeparator() {
-
-	m := OutgoingMessage{
-		Command: "separator",
-		Content: nil,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("separator", nil)
 }
 
 func GetCommand() (string, error) {
@@ -507,28 +487,21 @@ func GetCommand() (string, error) {
 // ----------------------------------------------------------
 
 func BuildMenu() {
-
-	m := OutgoingMessage{
-		Command: "buildmenu",
-		Content: nil,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("buildmenu", nil)
 }
 
 func SetAbout(s string) {
-
-	m := OutgoingMessage{
-		Command: "about",
-		Content: s,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("about", s)
 }
 
 // ----------------------------------------------------------
 
-func sendoutgoingmessage(m OutgoingMessage) {
+func send_command_and_content(command string, content interface{}) {
+
+	m := outgoing_msg{
+		Command: command,
+		Content: content,
+	}
 
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -542,21 +515,14 @@ func sendoutgoingmessage(m OutgoingMessage) {
 // ----------------------------------------------------------
 
 func Alertf(format_string string, args ...interface{}) {
-
 	msg := fmt.Sprintf(format_string, args...)
-
-	m := OutgoingMessage{
-		Command: "alert",
-		Content: msg,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("alert", msg)
 }
 
 func Logf(format_string string, args ...interface{}) {
 
 	// Logging means sending to stderr.
-	// The frontend picks such lines up and adds them to its own log window.
+	// The frontend picks such lines up and adds them to its own devlog window.
 
 	msg := fmt.Sprintf(format_string, args...)
 
@@ -573,36 +539,19 @@ func Logf(format_string string, args ...interface{}) {
 
 func Silentf(format_string string, args ...interface{}) {
 
+	// We can also log by sending a normal message to the frontend.
+	// This type of log message won't bring the devlog to the front.
+
 	msg := fmt.Sprintf(format_string, args...)
-
-	if len(msg) < 1 {
-		return
+	if len(msg) > 0 {
+		send_command_and_content("silentlog", msg)
 	}
-
-	m := OutgoingMessage{
-		Command: "silentlog",
-		Content: msg,
-	}
-
-	sendoutgoingmessage(m)
 }
 
 func AllowQuit() {
-
-	m := OutgoingMessage{
-		Command: "allowquit",
-		Content: nil,
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("allowquit", nil)
 }
 
 func BringToFront(w Window) {
-
-	m := OutgoingMessage{
-		Command: "front",
-		Content: w.GetUID(),
-	}
-
-	sendoutgoingmessage(m)
+	send_command_and_content("front", w.GetUID())
 }

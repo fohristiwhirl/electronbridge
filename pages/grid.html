@@ -221,7 +221,9 @@
 			if (opts) {
 				renderer.camerax = opts.camerax;
 				renderer.cameray = opts.cameray;
-				document.title = opts.title; 		// + ` -- df: ${renderer.dropped_frames} -- a: ${renderer.animators.length}`;
+				if (document.title != opts.title) {
+					document.title = opts.title;
+				}
 
 				// There's some nonsense in JS where astral characters are split in 2.
 				// But we can deal with this by using Array.from, which makes an array of strings each representing a character.
