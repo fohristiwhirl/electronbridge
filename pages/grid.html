@@ -170,14 +170,14 @@
 					let id = renderer.id_from_xy(x, y);
 					let element = document.getElementById(id);
 					element.addEventListener("mousedown", (evt) => {
-						evt.preventDefault();								// Prevent selecting text with the mouse
-						ipcRenderer.send("mousedown", {x: x, y: y});		// x and y work despite closures because we use "let" in the loops
+						evt.preventDefault();
+						ipcRenderer.send("mousedown", {x: x, y: y, button: evt.button});	// x and y work despite closures because we use "let" in the loops
 					});
 					element.addEventListener("mouseup", (evt) => {
-						ipcRenderer.send("mouseup", {x: x, y: y});			// As above
+						ipcRenderer.send("mouseup", {x: x, y: y, button: evt.button});		// As above
 					});
 					element.addEventListener("mouseover", (evt) => {
-						ipcRenderer.send("mouseover", {x: x, y: y});		// As above
+						ipcRenderer.send("mouseover", {x: x, y: y});						// As above
 					});
 				}
 			}
@@ -294,7 +294,7 @@
 
 				// ack is sent upon completion (or upon the frame being dropped; see "update" event handler, below).
 
-				send_ack_from_opts(opts)
+				send_ack_from_opts(opts);
 			}
 
 			// We do animations whether there's a new update from the backend or not.
@@ -381,11 +381,11 @@
 
 	ipcRenderer.on("update", (event, opts) => {
 		if (!renderer.inited) {
-			send_ack_from_opts(opts)
+			send_ack_from_opts(opts);
 			return;
 		}
 		if (renderer.pending_flip_opts !== null) {
-			send_ack_from_opts(renderer.pending_flip_opts)		// Acknowledge the frame we're dropping.
+			send_ack_from_opts(renderer.pending_flip_opts);		// Acknowledge the frame we're dropping.
 			renderer.dropped_frames += 1;
 			renderer.stress++;
 		} else {

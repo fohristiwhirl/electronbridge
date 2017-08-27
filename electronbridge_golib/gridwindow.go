@@ -42,6 +42,7 @@ type GridWindow struct {
 
 	Mutex			sync.Mutex					`json:"-"`
 	LastSend		time.Time					`json:"-"`
+	CallCount		int64						`json:"-"`
 }
 
 func (self *GridWindow) GetUID() int {
@@ -172,6 +173,7 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
+	w.CallCount++
 	now := time.Now()
 
 	// Don't send frames in very rapid succession; just ignore such frames instead.
@@ -181,6 +183,8 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 		if ack_channel != nil {
 			close(ack_channel)
 		}
+
+		go w.FlipLater(w.CallCount)		// This will eventually draw the frame if nothing else comes.
 		return
 	}
 
@@ -208,6 +212,23 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 	}
 
 	send_command_and_content("update", w)
+}
+
+func (w *GridWindow) FlipLater(call_count int64) {
+
+	// We skipped a frame because it came too fast. But what if there are no more frames afterwards?
+	// In that case it needs to be drawn! This goroutine does this.
+
+	time.Sleep(25 * time.Millisecond)
+
+	w.Mutex.Lock()
+	defer w.Mutex.Unlock()
+
+	if w.CallCount == call_count {		// Flip() was never called since the skip.
+		w.LastSend = time.Now()
+		w.AckRequired = ""
+		send_command_and_content("update", w)
+	}
 }
 
 func (w *GridWindow) FlipWithCamera(CameraX, CameraY int, ack_channel chan bool) {

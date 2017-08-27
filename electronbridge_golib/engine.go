@@ -17,29 +17,19 @@ type Window interface {
 
 // ----------------------------------------------------------
 
-type key_press struct {
-	key				string
-	uid				int
-}
-
 type key_map_query struct {
 	response_chan	chan bool
-	uid				int
 	key				string
 }
 
-type key_queue_query struct {
-	response_chan	chan string
-	uid				int
-}
-
-type mouse_press struct {
-	press			Point
-	uid				int
+type MousePress struct {
+	Point
+	Uid				int
+	Button			int		// 0 == left, 1 == middle, 2 == right
 }
 
 type mouse_query struct {
-	response_chan	chan Point
+	response_chan	chan MousePress
 	uid				int
 }
 
@@ -48,13 +38,13 @@ type mouse_query struct {
 var OUT_msg_chan = make(chan []byte)
 var ERR_msg_chan = make(chan []byte)
 
-var key_down_chan = make(chan key_press)
-var key_up_chan = make(chan key_press)
+var key_down_chan = make(chan string)
+var key_up_chan = make(chan string)
 var key_map_query_chan = make(chan key_map_query)
-var key_queue_query_chan = make(chan key_queue_query)
-var key_queue_clear_chan = make(chan int)
+var key_queue_query_chan = make(chan chan string)
+var key_queue_clear_chan = make(chan bool)
 
-var mouse_down_chan = make(chan mouse_press)
+var mouse_down_chan = make(chan MousePress)
 var mouse_query_chan = make(chan mouse_query)
 var mouse_clear_chan = make(chan int)
 
@@ -154,6 +144,7 @@ func listener() {
 		Uid				int							`json:"uid"`
 		X				int							`json:"x"`
 		Y				int							`json:"y"`
+		Button			int							`json:"button"`
 		Down			bool						`json:"down"`
 		Key				string						`json:"key"`
 		Cmd				string						`json:"cmd"`
@@ -187,15 +178,15 @@ func listener() {
 
 		if msg.Type == "key" {
 			if msg.Content.Down {
-				key_down_chan <- key_press{key: msg.Content.Key, uid: msg.Content.Uid}
+				key_down_chan <- msg.Content.Key
 			} else {
-				key_up_chan <- key_press{key: msg.Content.Key, uid: msg.Content.Uid}
+				key_up_chan <- msg.Content.Key
 			}
 		}
 
 		if msg.Type == "mouse" {		// Note: uses the same struct as below
 			if msg.Content.Down {
-				mouse_down_chan <- mouse_press{press: Point{msg.Content.X, msg.Content.Y}, uid: msg.Content.Uid}
+				mouse_down_chan <- MousePress{Point: Point{msg.Content.X, msg.Content.Y}, Uid: msg.Content.Uid, Button: msg.Content.Button}
 			}
 		}
 
@@ -258,17 +249,14 @@ func register_ack(desired_ack string, ack_channel chan bool) {
 
 func key_hub() {
 
-	// Note: at some point we might want both the ability to query a queue
-	// of keystrokes and an ability to see what keys are down NOW.
+	// This used to keep track of what windows each key was pressed on, see:
+	// https://github.com/fohristiwhirl/klaarheid/tree/40f0f55ef96b785e6b724a794032104fe265841d
+	//
+	// But for my actual use-case it's better to not bother.
+	// Key presses do not (logically) belong to a window the way mouseclicks do.
 
-	keyqueues := make(map[int][]string)
-	keymaps := make(map[int]map[string]bool)		// Lowercase only
-
-	make_keymap_if_needed := func (uid int) {
-		if keymaps[uid] == nil {
-			keymaps[uid] = make(map[string]bool)
-		}
-	}
+	var keyqueue []string
+	var keymap = make(map[string]bool)		// Lowercase only
 
 	for {
 		select {
@@ -277,60 +265,53 @@ func key_hub() {
 
 		case query := <- key_map_query_chan:
 
-			query.response_chan <- keymaps[query.uid][strings.ToLower(query.key)]	// if keymaps[query.uid] is nil, this is false
+			query.response_chan <- keymap[strings.ToLower(query.key)]
 
 		// Query of the queue...
 
-		case query := <- key_queue_query_chan:
+		case response_chan := <- key_queue_query_chan:
 
-			if len(keyqueues[query.uid]) == 0 {
-				query.response_chan <- ""
+			if len(keyqueue) == 0 {
+				response_chan <- ""
 			} else {
-				query.response_chan <- keyqueues[query.uid][0]
-				keyqueues[query.uid] = keyqueues[query.uid][1:]
+				response_chan <- keyqueue[0]
+				keyqueue = keyqueue[1:]
 			}
 
 		// Updates...
 
-		case key_msg := <- key_down_chan:
+		case key := <- key_down_chan:
 
-			keyqueues[key_msg.uid] = append(keyqueues[key_msg.uid], key_msg.key)
+			keyqueue = append(keyqueue, key)
+			keymap[strings.ToLower(key)] = true
 
-			make_keymap_if_needed(key_msg.uid)
-			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = true
+		case key := <- key_up_chan:
 
-		case key_msg := <- key_up_chan:
-
-			make_keymap_if_needed(key_msg.uid)
-			keymaps[key_msg.uid][strings.ToLower(key_msg.key)] = false
+			keymap[strings.ToLower(key)] = false
 
 		// Queue clear...
 
-		case clear_uid := <- key_queue_clear_chan:
+		case <- key_queue_clear_chan:
 
-			keyqueues[clear_uid] = nil
+			keyqueue = nil
 		}
 	}
 }
 
-func GetKeyDown(w Window, key string) bool {
-
-	uid := w.GetUID()
+func GetKeyDown(key string) bool {
 
 	response_chan := make(chan bool)
 
-	key_map_query_chan <- key_map_query{response_chan: response_chan, uid: uid, key: key}
+	key_map_query_chan <- key_map_query{response_chan: response_chan, key: key}
 
 	return <- response_chan
 }
 
-func GetKeypress(w Window) (string, error) {
-
-	uid := w.GetUID()
+func GetKeypress() (string, error) {
 
 	response_chan := make(chan string)
 
-	key_queue_query_chan <- key_queue_query{response_chan: response_chan, uid: uid}
+	key_queue_query_chan <- response_chan
 
 	key := <- response_chan
 	var err error = nil
@@ -342,49 +323,51 @@ func GetKeypress(w Window) (string, error) {
 	return key, err
 }
 
-func ClearKeyQueue(w Window) {
-	key_queue_clear_chan <- w.GetUID()
+func ClearKeyQueue() {
+	key_queue_clear_chan <- true
 }
 
 // ----------------------------------------------------------
 
 func mouse_click_hub() {
 
-	mousequeues := make(map[int][]Point)
+	mousequeues := make(map[int][]MousePress)
+
+	EMPTY_QUEUE_REPLY := MousePress{Point: Point{-1, -1}, Uid: -1, Button: -1}
 
 	for {
 		select {
 		case query := <- mouse_query_chan:
 			if len(mousequeues[query.uid]) == 0 {
-				query.response_chan <- Point{-1, -1}					// Note this: -1, -1 is used as a flag for empty queue
+				query.response_chan <- EMPTY_QUEUE_REPLY
 			} else {
 				query.response_chan <- mousequeues[query.uid][0]
 				mousequeues[query.uid] = mousequeues[query.uid][1:]
 			}
 		case mouse_msg := <- mouse_down_chan:
-			mousequeues[mouse_msg.uid] = append(mousequeues[mouse_msg.uid], mouse_msg.press)
+			mousequeues[mouse_msg.Uid] = append(mousequeues[mouse_msg.Uid], mouse_msg)
 		case clear_uid := <- mouse_clear_chan:
 			mousequeues[clear_uid] = nil
 		}
 	}
 }
 
-func GetMousedown(w Window) (Point, error) {
+func GetMouseClick(w Window) (MousePress, error) {
 
 	uid := w.GetUID()
 
-	response_chan := make(chan Point)
+	response_chan := make(chan MousePress)
 
 	mouse_query_chan <- mouse_query{response_chan: response_chan, uid: uid}
 
-	point := <- response_chan
+	press := <- response_chan
 	var err error = nil
 
-	if point.X < 0 {											// Note this: -1, -1 is used as a flag for empty queue
-		err = fmt.Errorf("GetMousedown(): nothing on queue")
+	if press.Point.X < 0 {											// Note this: -1, -1 is used as a flag for empty queue
+		err = fmt.Errorf("GetMouseClick(): nothing on queue")
 	}
 
-	return point, err
+	return press, err
 }
 
 func ClearMouseQueue(w Window) {

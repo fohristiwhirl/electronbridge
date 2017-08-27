@@ -146,7 +146,7 @@ exports.screenshot = (uid) => {
 		return;
 	}
 
-	let c = windobject.win.webContents
+	let c = windobject.win.webContents;
 	c.capturePage((image) => {
 		if (fs.existsSync("screenshots") == false) {
     		fs.mkdirSync("screenshots");
@@ -249,7 +249,7 @@ function all_uids(positive_only) {
 		}
 	}
 
-	all_uids.sort((a, b) => {return a - b})
+	all_uids.sort((a, b) => {return a - b;});
 
 	return all_uids;
 }

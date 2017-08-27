@@ -97,7 +97,7 @@ function rebuild_menu(write_to_exe, registered_commands) {
 	}
 
 	for (let n = 0; n < registered_commands.length; n++) {
-		template[0]["submenu"].push(registered_commands[n])
+		template[0]["submenu"].push(registered_commands[n]);
 	}
 
 	const menu = electron.Menu.buildFromTemplate(template);
@@ -216,11 +216,11 @@ function main() {
 							`--\n` +
 							`Electron ${process.versions.electron}\n` +
 							`Node ${process.versions.node}\n` +
-							`V8 ${process.versions.v8}`
+							`V8 ${process.versions.v8}`;
 		}
 
 		if (j.command === "front") {
-			windows.show(j.content)
+			windows.show(j.content);
 		}
 
 		if (j.command === "silentlog") {
@@ -307,7 +307,8 @@ function main() {
 				down: true,
 				uid: windobject.uid,
 				x: msg.x,
-				y: msg.y
+				y: msg.y,
+				button: msg.button
 			}
 		};
 
@@ -328,7 +329,8 @@ function main() {
 				down: false,
 				uid: windobject.uid,
 				x: msg.x,
-				y: msg.y
+				y: msg.y,
+				button: msg.button
 			}
 		};
 
