@@ -28,10 +28,6 @@ func main() {
 
 		main_window.Flip(nil)		// Optionally, send a (chan bool) as an argument and get a message when drawing is completed (or aborted).
 
-		if i % 1000 == 0 {
-			time.Sleep(1 * time.Second)
-		}
-
 		for {
 			click, err := electron.GetMouseClick(main_window)
 			if err != nil {
