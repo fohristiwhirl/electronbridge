@@ -10,6 +10,7 @@
 		pointer-events: none;
 		user-select: none;
 		cursor: default;
+		overflow: hidden;		/* avoids out by one issues relating to DPI and zoom etc */
 	}
 	table {
 		margin: 0;
@@ -115,8 +116,6 @@
 			dropped_animations: 0,
 			stress: 0,
 			inited: false,
-			highlight_x: -1,
-			highlight_y: -1,
 			camerax: 0,
 			cameray: 0,
 			animators: [],
@@ -133,6 +132,9 @@
 			renderer.height = opts.height;
 			renderer.boxwidth = opts.boxwidth;
 			renderer.boxheight = opts.boxheight;
+			renderer.animation_x_offset = opts.animation_x_offset;
+			renderer.animation_y_offset = opts.animation_y_offset;
+			renderer.bordertop = opts.bordertop;
 			renderer.uid = opts.uid;
 
 			log(`initial window size: ${document.querySelector("body").scrollWidth} x ${document.querySelector("body").scrollHeight}`);
@@ -201,7 +203,11 @@
 
 			let body = document.querySelector("body");
 			log(`actual body size: ${body.scrollWidth} x ${body.scrollHeight}`);
-			renderer.resize(body.scrollWidth, body.scrollHeight);
+
+			ipcRenderer.send("request_resize", {
+				xpixels: body.scrollWidth,
+				ypixels: body.scrollHeight
+			});
 		};
 
 		renderer.flip = () => {
@@ -210,10 +216,9 @@
 			// in the usual way, so here we can have some vars instead...
 
 			var opts, already_cleared, n, char_array, colour_array,
-				background_array, highlight, highlight_index, length,
-				element, colour_key, colour;
+				background_array, length, element, colour_key, colour;
 
-			renderer.cache_true_sizes();
+			renderer.note_true_sizes();
 
 			opts = renderer.pending_flip_opts;
 			renderer.pending_flip_opts = null;
@@ -231,9 +236,6 @@
 				char_array = Array.from(opts.chars);
 				colour_array = Array.from(opts.colours);
 				background_array = Array.from(opts.backgrounds);
-
-				highlight = opts.highlight;
-				highlight_index = highlight.y * renderer.width + highlight.x;
 
 				// Character, colour...
 
@@ -265,22 +267,16 @@
 
 						// Set background...
 
-						if (n === highlight_index) {
-							if (element.style["background-color"] !== "rgb(73, 73, 73)") {
-								element.style["background-color"] = "rgb(73, 73, 73)";
+						colour_key = background_array[n];
+						colour = colour_dict[colour_key];
+
+						if (colour) {
+							if (element.style["background-color"] !== colour) {
+								element.style["background-color"] = colour;
 							}
 						} else {
-							colour_key = background_array[n];
-							colour = colour_dict[colour_key];
-
-							if (colour) {
-								if (element.style["background-color"] !== colour) {
-									element.style["background-color"] = colour;
-								}
-							} else {
-								if (element.style["background-color"] !== "rgb(255, 255, 255)") {
-									element.style["background-color"] = "rgb(255, 255, 255)";
-								}
+							if (element.style["background-color"] !== "rgb(255, 255, 255)") {
+								element.style["background-color"] = "rgb(255, 255, 255)";
 							}
 						}
 
@@ -321,17 +317,8 @@
 			return;
 		};
 
-		renderer.resize = (xpixels, ypixels) => {
-			let msg = {
-				xpixels: xpixels,
-				ypixels: ypixels,
-			};
-			ipcRenderer.send("request_resize", msg);
-			canvas.width = xpixels;
-			canvas.height = ypixels;
-		};
+		renderer.note_true_sizes = () => {
 
-		renderer.cache_true_sizes = () => {
 			let top_left_element = renderer.td_lookup[0];
 			let top_left_bound = top_left_element.getBoundingClientRect();
 			let top_left_x = top_left_bound.left;
@@ -344,20 +331,21 @@
 
 			renderer.true_boxwidth = (bottom_right_x - top_left_x) / renderer.width;
 			renderer.true_boxheight = (bottom_right_y - top_left_y) / renderer.height;
+
+			if (canvas.width !== Math.floor(bottom_right_x) || canvas.height !== Math.floor(bottom_right_y)) {
+				canvas.width = Math.floor(bottom_right_x);
+				canvas.height = Math.floor(bottom_right_y);
+			}
 		};
 
-		renderer.pixel_xy_from_world_xy = (x, y) => {
+		renderer.animation_pixel_xy_from_world_xy = (x, y) => {
 
-			// Takes the camera position into account. Returns the centre of the box.
+			// Takes the camera position and borders into account. Returns the centre of the box.
 
-			let i = (x - renderer.camerax) * renderer.true_boxwidth + renderer.true_boxwidth / 2;
-			let j = (y - renderer.cameray) * renderer.true_boxheight + renderer.true_boxheight / 2;
+			let i = (renderer.animation_x_offset + x - renderer.camerax) * renderer.true_boxwidth + renderer.true_boxwidth / 2;
+			let j = (renderer.animation_y_offset + y - renderer.cameray) * renderer.true_boxheight + renderer.true_boxheight / 2;
 
 			return [i, j];
-		};
-
-		renderer.grid_xy_from_world_xy = (x, y) => {
-			return [Math.floor(x) - renderer.camerax, Math.floor(y) - renderer.cameray];
 		};
 
 		renderer.id_from_xy = (x, y) => {

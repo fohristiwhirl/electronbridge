@@ -25,7 +25,7 @@ exports.get_windobject_from_event = (event) => {
 
 exports.resize = (windobject, opts) => {
 	if (windobject) {
-		windobject.win.setContentSize(opts.xpixels, opts.ypixels);
+		windobject.win.setContentSize(Math.floor(opts.xpixels), Math.floor(opts.ypixels));
 	}
 };
 
@@ -47,8 +47,8 @@ exports.new_window = (config) => {
 	let win = new electron.BrowserWindow({
 		show: false,
 		title: config.name,
-		width: win_pixel_width,
-		height: win_pixel_height,
+		width: Math.floor(win_pixel_width),
+		height: Math.floor(win_pixel_height),
 		backgroundColor: "#000000",
 		useContentSize: true,
 		resizable: config.resizable

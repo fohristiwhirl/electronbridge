@@ -6,9 +6,17 @@ import (
 	electron "./electronbridge_golib"
 )
 
+const (
+	WIDTH = 40
+	HEIGHT = 3
+	BOX_WIDTH = 12
+	BOX_HEIGHT = 20
+	FONT_PERCENT = 100
+)
+
 func main() {
 	report_window := electron.NewTextWindow("Reports", "pages/log.html", 400, 300, false, true)
-	main_window := electron.NewGridWindow("Timer", "pages/grid.html", 40, 3, 12, 20, 100, false, false)
+	main_window := electron.NewGridWindow("Timer", "pages/grid.html", WIDTH, HEIGHT, BOX_WIDTH, BOX_HEIGHT, 0, 0, FONT_PERCENT, false, false)
 
 	electron.RegisterCommand("Menu Item 1", "")
 	electron.RegisterCommand("Menu Item 2", "")

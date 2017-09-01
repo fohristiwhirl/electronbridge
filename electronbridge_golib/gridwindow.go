@@ -28,21 +28,21 @@ func (s string_slice) MarshalJSON() ([]byte, error) {	// Marshalling them means 
 }
 
 type GridWindow struct {
-	Uid				int							`json:"uid"`
-	Width			int							`json:"width"`
-	Height			int							`json:"height"`
-	Chars			string_slice				`json:"chars"`
-	Colours			string_slice				`json:"colours"`
-	Backgrounds		string_slice				`json:"backgrounds"`
-	Highlight		Point						`json:"highlight"`
-	CameraX			int							`json:"camerax"`		// Only used to keep animations in alignment with the world
-	CameraY			int							`json:"cameray"`		// Only used to keep animations in alignment with the world
-	Title			string						`json:"title"`
-	AckRequired		string						`json:"ackrequired"`	// Updated each flip (maybe set to "" though)
+	Uid					int							`json:"uid"`
+	Width				int							`json:"width"`
+	Height				int							`json:"height"`
+	Chars				string_slice				`json:"chars"`
+	Colours				string_slice				`json:"colours"`
+	Backgrounds			string_slice				`json:"backgrounds"`
+	CameraX				int							`json:"camerax"`		// Only used to keep animations in alignment with the world
+	CameraY				int							`json:"cameray"`		// Only used to keep animations in alignment with the world
+	Title				string						`json:"title"`
+	AckRequired			string						`json:"ackrequired"`	// Updated each flip (maybe set to "" though)
 
-	Mutex			sync.Mutex					`json:"-"`
-	LastSend		time.Time					`json:"-"`
-	CallCount		int64						`json:"-"`
+	Mutex				sync.Mutex					`json:"-"`
+	LastSend			time.Time					`json:"-"`
+	CallCount			int64						`json:"-"`
+	FlipLatersActive	int							`json:"-"`
 }
 
 func (self *GridWindow) GetUID() int {
@@ -50,19 +50,24 @@ func (self *GridWindow) GetUID() int {
 }
 
 type new_grid_win_msg struct {
-	Name			string						`json:"name"`
-	Page			string						`json:"page"`
-	Uid				int							`json:"uid"`
-	Width			int							`json:"width"`
-	Height			int							`json:"height"`
-	BoxWidth		int							`json:"boxwidth"`
-	BoxHeight		int							`json:"boxheight"`
-	FontPercent		int							`json:"fontpercent"`
-	StartHidden		bool						`json:"starthidden"`
-	Resizable		bool						`json:"resizable"`
+	Name				string						`json:"name"`
+	Page				string						`json:"page"`
+	Uid					int							`json:"uid"`
+	Width				int							`json:"width"`
+	Height				int							`json:"height"`
+	BoxWidth			int							`json:"boxwidth"`
+	BoxHeight			int							`json:"boxheight"`
+	AnimationXOffset	int							`json:"animation_x_offset"`
+	AnimationYOffset	int							`json:"animation_y_offset"`
+	FontPercent			int							`json:"fontpercent"`
+	StartHidden			bool						`json:"starthidden"`
+	Resizable			bool						`json:"resizable"`
 }
 
-func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpercent int, starthidden, resizable bool) *GridWindow {
+func NewGridWindow(
+			name, page string,
+			width, height, boxwidth, boxheight, animation_x_offset, animation_y_offset, fontpercent int,
+			starthidden, resizable bool) *GridWindow {
 
 	uid := id_maker.next()
 
@@ -86,6 +91,8 @@ func NewGridWindow(name, page string, width, height, boxwidth, boxheight, fontpe
 		Height: height,
 		BoxWidth: boxwidth,
 		BoxHeight: boxheight,
+		AnimationXOffset: animation_x_offset,
+		AnimationYOffset: animation_y_offset,
 		FontPercent: fontpercent,
 		StartHidden: starthidden,
 		Resizable: resizable,
@@ -139,14 +146,6 @@ func (w *GridWindow) Get(x, y int) Spot {
 	return Spot{Char: char, Colour: colour, Background: background}
 }
 
-func (w *GridWindow) SetHighlight(x, y int) {
-
-	w.Mutex.Lock()
-	defer w.Mutex.Unlock()
-
-	w.Highlight = Point{x, y}
-}
-
 func (w *GridWindow) Clear() {
 
 	w.Mutex.Lock()
@@ -157,7 +156,6 @@ func (w *GridWindow) Clear() {
 		w.Colours[n] = CLEAR_COLOUR
 		w.Backgrounds[n] = CLEAR_BACKGROUND
 	}
-	w.Highlight = Point{-1, -1}
 }
 
 func (w *GridWindow) SetTitle(s string) {
@@ -184,7 +182,12 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 			close(ack_channel)
 		}
 
-		go w.FlipLater(w.CallCount)		// This will eventually draw the frame if nothing else comes.
+		// Spin up a goroutine that will eventually draw the frame if nothing else happens.
+
+		if w.FlipLatersActive < 100 {		// I don't want a zillion of these goroutines running.
+			w.FlipLatersActive++
+			go w.FlipLater(w.CallCount)
+		}
 		return
 	}
 
@@ -229,6 +232,8 @@ func (w *GridWindow) FlipLater(call_count int64) {
 		w.AckRequired = ""
 		send_command_and_content("update", w)
 	}
+
+	w.FlipLatersActive--
 }
 
 func (w *GridWindow) FlipWithCamera(CameraX, CameraY int, ack_channel chan bool) {

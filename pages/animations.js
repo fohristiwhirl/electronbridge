@@ -3,6 +3,7 @@
 // The animators here use absolute "real world" grid coordinates
 // as their internal x and y coordinates. We can convert these to
 // screen coordinates based on renderer.camerax and .cameray.
+// We also have to take into account the left and top borders.
 
 const canvas = document.getElementById("canvas");
 const virtue = canvas.getContext("2d");
@@ -59,8 +60,8 @@ exports.make_shot = (opts, renderer) => {
 		let next_x = x + frame_dx;
 		let next_y = y + frame_dy;
 
-		let [x1p, y1p] = renderer.pixel_xy_from_world_xy(x, y);
-		let [x2p, y2p] = renderer.pixel_xy_from_world_xy(next_x, next_y);
+		let [x1p, y1p] = renderer.animation_pixel_xy_from_world_xy(x, y);
+		let [x2p, y2p] = renderer.animation_pixel_xy_from_world_xy(next_x, next_y);
 
 		if (in_canvas(x1p, y1p) && in_canvas(x2p, y2p)) {
 			virtue.strokeStyle = colour;
@@ -99,7 +100,7 @@ exports.make_flash = (opts, renderer) => {
 			return;
 		}
 
-		let [i, j] = renderer.pixel_xy_from_world_xy(opts.x, opts.y);
+		let [i, j] = renderer.animation_pixel_xy_from_world_xy(opts.x, opts.y);
 
 		if (in_canvas(i, j)) {
 			let a = ((opts.duration - frame) / opts.duration) * opts.opacity;
@@ -109,21 +110,6 @@ exports.make_flash = (opts, renderer) => {
 			that.finished = true;
 			return;
 		}
-
-/* Optionally, we could use the DOM instead of the canvas for these...
-
-		let [i, j] = renderer.grid_xy_from_world_xy(opts.x, opts.y);
-
-		if (i >= 0 && i < renderer.width && j >= 0 && j < renderer.height) {
-			let id = renderer.id_from_xy(i, j);
-			let element = document.getElementById(id);
-			let a = ((opts.duration - frame) / opts.duration) * opts.opacity;
-			element.style["background-color"] = `rgba(${r}, ${g}, ${b}, ${a})`;
-		} else {
-			that.finished = true;
-			return;
-		}
-*/
 	};
 
 	return that;
