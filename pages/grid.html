@@ -101,6 +101,9 @@
 	}
 
 	function send_ack_from_opts(opts) {
+		if (opts === undefined || opts === null) {
+			return
+		}
 		if (opts.ackrequired !== undefined && opts.ackrequired !== "") {
 			ipcRenderer.send("ack", opts.ackrequired);
 		}
@@ -113,7 +116,9 @@
 		let renderer = {
 			pending_flip_opts: null,
 			dropped_frames: 0,
+			next_dropped_frames_warning: 1,
 			dropped_animations: 0,
+			next_dropped_animations_warning: 1,
 			stress: 0,
 			inited: false,
 			camerax: 0,
@@ -224,6 +229,7 @@
 			renderer.pending_flip_opts = null;
 
 			if (opts) {
+
 				renderer.camerax = opts.camerax;
 				renderer.cameray = opts.cameray;
 				if (document.title != opts.title) {
@@ -376,6 +382,11 @@
 			send_ack_from_opts(renderer.pending_flip_opts);		// Acknowledge the frame we're dropping.
 			renderer.dropped_frames += 1;
 			renderer.stress++;
+			if (renderer.dropped_frames === renderer.next_dropped_frames_warning) {
+				renderer.next_dropped_frames_warning *= 2;
+				let word = renderer.dropped_frames === 1 ? "frame" : "frames"
+				log(`grid.html (JS frontend) has now dropped ${renderer.dropped_frames} ${word}.`)
+			}
 		} else {
 			renderer.stress = 0;
 		}
@@ -388,6 +399,11 @@
 		}
 		if (renderer.stress >= 3) {
 			renderer.dropped_animations += 1;
+			if (renderer.dropped_animations === renderer.next_dropped_animations_warning) {
+				renderer.next_dropped_animations_warning *= 2;
+				let word = renderer.dropped_animations === 1 ? "animation" : "animations"
+				log(`grid.html (JS frontend) has now dropped ${renderer.dropped_animations} ${word}.`)
+			}
 			return;
 		}
 		let factory = animations[opts.function];

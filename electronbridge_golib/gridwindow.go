@@ -39,10 +39,13 @@ type GridWindow struct {
 	Title				string						`json:"title"`
 	AckRequired			string						`json:"ackrequired"`	// Updated each flip (maybe set to "" though)
 
+	BackendCanDrop		bool						`json:"-"`
 	Mutex				sync.Mutex					`json:"-"`
 	LastSend			time.Time					`json:"-"`
 	CallCount			int64						`json:"-"`
 	FlipLatersActive	int							`json:"-"`
+	FramesDropped		int							`json:"-"`
+	NextDropWarning		int							`json:"-"`
 }
 
 func (self *GridWindow) GetUID() int {
@@ -67,7 +70,7 @@ type new_grid_win_msg struct {
 func NewGridWindow(
 			name, page string,
 			width, height, boxwidth, boxheight, animation_x_offset, animation_y_offset, fontpercent int,
-			starthidden, resizable bool) *GridWindow {
+			backend_can_drop, starthidden, resizable bool) *GridWindow {
 
 	uid := id_maker.next()
 
@@ -78,6 +81,9 @@ func NewGridWindow(
 	w.Backgrounds = make([]string, width * height)
 
 	w.Title = name
+
+	w.BackendCanDrop = backend_can_drop
+	w.NextDropWarning = 1
 
 	w.Clear()
 
@@ -171,27 +177,38 @@ func (w *GridWindow) Flip(ack_channel chan bool) {
 	w.Mutex.Lock()
 	defer w.Mutex.Unlock()
 
-	w.CallCount++
-	now := time.Now()
+	if w.BackendCanDrop {
 
-	// Don't send frames in very rapid succession; just ignore such frames instead.
-	// If an ack was requested, we close the channel so the waiter receives false.
+		// Optionally, don't send frames in very rapid succession; just ignore such frames instead.
+		// If an ack was requested, we close the channel so the waiter receives false.
 
-	if now.Sub(w.LastSend) < 9 * time.Millisecond {
-		if ack_channel != nil {
-			close(ack_channel)
+		w.CallCount++
+		now := time.Now()
+
+		if now.Sub(w.LastSend) < 9 * time.Millisecond {
+
+			w.FramesDropped++
+			if w.FramesDropped == w.NextDropWarning {
+				w.NextDropWarning *= 2
+				word := "frames"; if w.FramesDropped == 1 { word = "frame" }
+				Silentf("Grid (Golang backend) UID %d has now dropped %d %s.", w.GetUID(), w.FramesDropped, word)
+			}
+
+			if ack_channel != nil {
+				close(ack_channel)
+			}
+
+			// Spin up a goroutine that will eventually draw the frame if nothing else happens.
+
+			if w.FlipLatersActive < 100 {		// I don't want a zillion of these goroutines running.
+				w.FlipLatersActive++
+				go w.FlipLater(w.CallCount)
+			}
+			return
 		}
 
-		// Spin up a goroutine that will eventually draw the frame if nothing else happens.
-
-		if w.FlipLatersActive < 100 {		// I don't want a zillion of these goroutines running.
-			w.FlipLatersActive++
-			go w.FlipLater(w.CallCount)
-		}
-		return
+		w.LastSend = now
 	}
-
-	w.LastSend = now
 
 	if ack_channel == nil {
 

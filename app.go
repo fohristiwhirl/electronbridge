@@ -16,7 +16,7 @@ const (
 
 func main() {
 	report_window := electron.NewTextWindow("Reports", "pages/log.html", 400, 300, false, true)
-	main_window := electron.NewGridWindow("Timer", "pages/grid.html", WIDTH, HEIGHT, BOX_WIDTH, BOX_HEIGHT, 0, 0, FONT_PERCENT, false, false)
+	main_window := electron.NewGridWindow("Timer", "pages/grid.html", WIDTH, HEIGHT, BOX_WIDTH, BOX_HEIGHT, 0, 0, FONT_PERCENT, true, false, false)
 
 	electron.RegisterCommand("Menu Item 1", "")
 	electron.RegisterCommand("Menu Item 2", "")
