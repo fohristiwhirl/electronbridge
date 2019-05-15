@@ -3,13 +3,14 @@
 const alert = require("./alert");
 const child_process = require("child_process");
 const electron = require("electron");
-const fs = require('fs');
+const fs = require("fs");
 const ipcMain = require("electron").ipcMain;
+const path = require("path");
 const readline = require("readline");
 const windows = require("./windows");
 
 const DEV_LOG_WINDOW_ID = -1;
-const TARGET_APP = "app.exe";
+const TARGET_APP = "./app";
 
 let about_message = `Electron Bridge: window manager for Golang via Electron\n` +
 					`--\n` +
@@ -110,7 +111,7 @@ function main() {
 
 	windows.new_window({
 		uid: DEV_LOG_WINDOW_ID,
-		page: "pages/log_simple.html",
+		page: path.join(process.cwd(), "pages/log_simple.html"),
 		name: "Dev Log",
 		width: 800,
 		height: 600,
@@ -168,9 +169,11 @@ function main() {
 	let registered_commands = [];
 
 	scanner.on("line", (line) => {
+
 		let j = JSON.parse(line);
 
 		if (j.command === "new") {
+			j.content.page = path.join(process.cwd(), j.content.page),
 			windows.new_window(j.content);
 		}
 
