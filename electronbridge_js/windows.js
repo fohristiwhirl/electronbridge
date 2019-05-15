@@ -4,6 +4,7 @@ const alert = require("./alert");
 const assert = require("assert");
 const electron = require("electron");
 const fs = require("fs");
+const path = require("path");
 const url = require("url");
 
 // The windobject is our fundamental object, containing fields:
@@ -51,12 +52,15 @@ exports.new_window = (config) => {
 		height: Math.floor(win_pixel_height),
 		backgroundColor: "#000000",
 		useContentSize: true,
-		resizable: config.resizable
+		resizable: config.resizable,
+		webPreferences: {
+			nodeIntegration: true
+		}
 	});
 
 	win.loadURL(url.format({
 		protocol: "file:",
-		pathname: config.page,
+		pathname: path.join(process.cwd(), config.page),
 		slashes: true
 	}));
 

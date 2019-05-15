@@ -9,7 +9,7 @@ const readline = require("readline");
 const windows = require("./windows");
 
 const DEV_LOG_WINDOW_ID = -1;
-const TARGET_APP = "app.exe";
+const TARGET_APP = "./app";
 
 let about_message = `Electron Bridge: window manager for Golang via Electron\n` +
 					`--\n` +
