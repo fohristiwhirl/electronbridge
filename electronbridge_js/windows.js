@@ -51,22 +51,14 @@ exports.new_window = (config) => {
 		height: Math.floor(win_pixel_height),
 		backgroundColor: "#000000",
 		useContentSize: true,
-		resizable: config.resizable,
-		webPreferences: {
-			nodeIntegration: true,
-			webSecurity: false
-		}
+		resizable: config.resizable
 	});
 
-	let f = url.format({
+	win.loadURL(url.format({
 		protocol: "file:",
 		pathname: config.page,
 		slashes: true
-	})
-
-	console.log(f);
-
-	win.loadURL(f);
+	}));
 
 	if (config.nomenu === true) {
 		win.setMenu(null);
@@ -210,13 +202,10 @@ function send_or_queue(windobject, channel, msg) {
 	if (windobject === undefined) {
 		return;
 	}
-	/*
 	if (windobject.ready !== true) {
 		windobject.queue.push(() => windobject.send(channel, msg));
-		console.log("queued")
 		return;
 	}
-	*/
 	try {
 		windobject.send(channel, msg);
 	} catch (e) {
