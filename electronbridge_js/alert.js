@@ -3,9 +3,6 @@
 const electron = require("electron");
 
 function object_to_string(o) {
-    if (typeof(o) === "undefined") {
-        return "undefined";
-    }
     let msg = JSON.stringify(o);
     return msg;
 }
@@ -15,7 +12,7 @@ function alert_main(msg) {
         message: msg.toString(),
         title: "Alert",
         buttons: ["OK"]
-    }, () => {});               // Providing a callback makes the window not block the process
+    }, () => {});           // Providing a callback makes the window not block the process
 }
 
 function alert_renderer(msg) {
@@ -27,10 +24,19 @@ function alert_renderer(msg) {
 }
 
 module.exports = (msg) => {
-    if (typeof(msg) !== "string") {
+    if (msg instanceof Error) {
+        msg = msg.toString();
+    }
+    if (typeof(msg) === "object") {
         msg = object_to_string(msg);
     }
-    msg = msg.trim();
+    if (typeof(msg) === "undefined") {
+        msg = "undefined";
+    }
+    if (typeof(msg) === "number") {
+        msg = msg.toString();
+    }
+    msg = msg.trim()
     if (process.type === "renderer") {
         alert_renderer(msg);
     } else {
